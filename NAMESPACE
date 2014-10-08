@@ -1,0 +1,46 @@
+##### Import packages for STATegRa
+
+import(Biobase)
+import(ggplot2)
+import(methods)
+import(gridExtra)
+import(grid)
+import(MASS)
+import(calibrate)
+import(gplots)
+
+##### Export elements for OmicsClustering
+
+exportClasses(bioMap)
+export(bioMap)
+exportMethods(createOmicsExpressionSet)
+exportClasses(bioDistclass)
+export(bioDistclass)
+exportMethods(bioDist)
+exportMethods(bioDistW)
+exportMethods(bioDistWPlot)
+exportMethods(bioDistFeature)
+export(bioDistFeaturePlot)
+
+##### Export for both
+export(STATegRaUsersGuide)
+
+##### Export elements for OmicsPCA
+exportMethods(selectCommonComps)
+exportMethods(modelSelection)
+exportMethods(PCA.selection)
+exportMethods(omicsCompAnalysis)
+exportMethods(plotVAF)
+exportMethods(plotRes)
+exportMethods(biplotRes)
+exportMethods(getInitialData)
+exportMethods(getVAF)
+exportMethods(getLoadings)
+exportMethods(getMethodInfo)
+exportMethods(getScores)
+exportMethods(getPreprocessing)
+
+
+
+
+
