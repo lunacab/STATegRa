@@ -19,6 +19,39 @@ g_legend<-function(a.gplot){
 ##    mainTitle: (character) Title of the plot
 ## OUTPUT:
 ##    (plot): VAF plot, one for each block and one for the joined data
+#' @export
+#' @import ggplot2
+#' @import grid
+#' @import gridExtra
+#' @title Plot VAF (Variance Explained For) from Component Analysis
+#' @aliases plotVAF,caClass-method
+#' @description 
+#' This function visualises the VAF results from component analysis. The input is a \code{\link{caClass-class}} object from \code{\link{omicsCompAnalysis}}. VAF cannot be calculated if mode "O2PLS" was used. The plots for modes "DISCOSCA" and "JIVE" are different since DISCO-SCA distinctive components have some VAF in the other block. This VAF can be interpreted as an error in the rotation.
+#' @usage plotVAF(object, mainTitle="")
+#' @param object \code{\link{caClass-class}} object containing component analysis results
+#' @param mainTitle Plot title
+#' @return \code{ggplot} object
+#' @author Patricia Sebastian-Leon
+#' @examples 
+#' data("STATegRa_S3")
+#' require(ggplot2)
+#' B1 <- createOmicsExpressionSet(Data=Block1.PCA,pData=ed.PCA,
+#'                                pDataDescr=c("classname"))
+#' B2 <- createOmicsExpressionSet(Data=Block2.PCA,
+#'                                pData=ed.PCA,pDataDescr=c("classname"))
+#' # Omics components analysis
+#' discoRes <- omicsCompAnalysis(Input=list(B1,B2),Names=c("expr","mirna"),
+#'                               method="DISCOSCA",Rcommon=2,Rspecific=c(2,2),
+#'                               center=TRUE,scale=TRUE,weight=TRUE)
+#' jiveRes <- omicsCompAnalysis(Input=list(B1,B2),Names=c("expr","mirna"),
+#'                              method="JIVE",Rcommon=2,Rspecific=c(2,2),
+#'                              center=TRUE,scale=TRUE,weight=TRUE)
+#' 
+#' # DISCO-SCA plotVAF
+#' plotVAF(discoRes)
+#' 
+#' # JIVE plotVAF
+#' plotVAF(jiveRes)
 setGeneric(
     name="plotVAF",
     def=function(object,mainTitle=""){standardGeneric("plotVAF")}
@@ -143,6 +176,79 @@ setMethod(
 # sizeValues <- c(2,4)
 # colorCol <- "classname"
 # shapeValues <- c(17,0)
+#' @export
+#' @title Biplot of component analysis
+#' @aliases biplotRes,caClass,character,numeric,character-method
+#' @description 
+#' Generate a biplot of component analysis results
+#' @usage biplotRes(object, type, comps, block, title=NULL, colorCol=NULL,
+#'                  sizeValues=c(2, 4), shapeValues=c(17, 0), background=TRUE, 
+#'                  pointSize=4, labelSize=NULL, axisSize=NULL, titleSize=NULL)
+#' @param object \code{caClass} object containing component analysis results
+#' @param type Character specifying which components to plot; "common", "individual" or "both"
+#' @param comps Components to plot. If \code{combined=FALSE}, specifies the component indices to use as x and y for the plot. Otherwise, the component from the first block and the component from second block to plot together.
+#' @param block Which block to plot, either "1" or "2" or the name of the block.
+#' @param title Plot title
+#' @param colorCol Character specifying a pData column to use to colorise the plot points
+#' @param sizeValues Vector containing sizes for scores and loadings
+#' @param shapeValues Vector indicating the shapes for scores and loadings
+#' @param background Logical, whether to use a grey background
+#' @param pointSize Size of plot points
+#' @param labelSize Size of plot labels if not NULL
+#' @param axisSize Size of axis text
+#' @param titleSize Size of title text
+#' @return \code{ggplot2} object
+#' @author Patricia Sebastian-Leon
+#' @examples
+#' data("STATegRa_S3")
+#' B1 <- createOmicsExpressionSet(Data=Block1.PCA,pData=ed.PCA,
+#'                                pDataDescr=c("classname"))
+#' B2 <- createOmicsExpressionSet(Data=Block2.PCA,
+#'                                pData=ed.PCA,pDataDescr=c("classname"))
+#' # Omics components analysis
+#' discoRes <- omicsCompAnalysis(Input=list(B1,B2),Names=c("expr","mirna"),
+#'                               method="DISCOSCA",Rcommon=2,Rspecific=c(2,2),
+#'                               center=TRUE,scale=TRUE,weight=TRUE)
+#' jiveRes <- omicsCompAnalysis(Input=list(B1,B2),Names=c("expr","mirna"),
+#'                              method="JIVE",Rcommon=2,Rspecific=c(2,2),
+#'                              center=TRUE,scale=TRUE,weight=TRUE)
+#' 
+#' o2plsRes <- omicsCompAnalysis(Input=list(B1,B2),Names=c("expr","mirna"),
+#'                               method="O2PLS",Rcommon=2,Rspecific=c(2,2),
+#'                               center=TRUE,scale=TRUE,weight=TRUE)
+#' 
+#' # Biplot common part. DISCO-SCA
+#' 
+#' biplotRes(object=discoRes,type="common",comps=c(1,2),block="",
+#'           title=NULL,colorCol="classname",sizeValues=c(2,4),
+#'           shapeValues=c(17,0),background=TRUE,pointSize=4,
+#'           labelSize=NULL,axisSize=NULL,titleSize=NULL)
+#' 
+#' # Biplot common part. O2PLS
+#' 
+#' p1 <- biplotRes(object=o2plsRes,type="common",comps=c(1,2),
+#'                 block="expr",title=NULL,colorCol="classname",
+#'                 sizeValues=c(2,4),shapeValues=c(17,0),
+#'                 background=TRUE,pointSize=4,labelSize=NULL,
+#'                 axisSize=NULL,titleSize=NULL)
+#' p2 <- biplotRes(object=o2plsRes,type="common",comps=c(1,2),
+#'                 block="mirna",title=NULL,colorCol="classname",
+#'                 sizeValues=c(2,4),shapeValues=c(17,0),
+#'                 background=TRUE,pointSize=4,labelSize=NULL,
+#'                 axisSize=NULL,titleSize=NULL)
+#' 
+#' # Biplot distinctive part. O2PLS
+#' 
+#' p1 <- biplotRes(object=discoRes,type="individual",comps=c(1,2),
+#'                 block="expr",title=NULL,colorCol="classname",
+#'                 sizeValues=c(2,4),shapeValues=c(17,0),
+#'                 background=TRUE,pointSize=4,labelSize=NULL,
+#'                 axisSize=NULL,titleSize=NULL)
+#' p2 <- biplotRes(object=discoRes,type="individual",comps=c(1,2),
+#'                 block="mirna",title=NULL,colorCol="classname",
+#'                 sizeValues=c(2,4),shapeValues=c(17,0),
+#'                 background=TRUE,pointSize=4,labelSize=NULL,
+#'                 axisSize=NULL,titleSize=NULL)
 setGeneric(
     name="biplotRes",
     def=function(object,type,comps,block,title=NULL,colorCol=NULL,sizeValues=c(2,4),shapeValues=c(17,0),background=TRUE,pointSize=4,
@@ -294,6 +400,98 @@ setMethod(
 #   combined=c(T,F): Combine common and distinctive components?
 #   comps=c(comp_x,comp_y): components to plot. Indicate x and y, if combined=T, x=common_comp and y=dist_comp
 #   block=c(1,2): Block to plot, if common=T ignored except for O2PLS
+#' @export
+#' @title Plot component analysis results
+#' @aliases plotRes,caClass,numeric,character,character,logical,character-method
+#' @description 
+#' Plot scatterplots of scores or loadings, for common and distinctive parts as well as combined plots.
+#' @usage plotRes(object, comps=c(1, 2), what, type, combined, block, 
+#'                color=NULL, shape=NULL, labels=NULL, background=TRUE, 
+#'                palette=NULL, pointSize=4, labelSize=NULL, 
+#'                axisSize=NULL, titleSize=NULL)
+#' @param object \code{caClass} object containing component analysis results
+#' @param comps If combined=FALSE, it indicates the x and y components of the type and block chosen. If \code{combined=TRUE}, it indicates the component to plot for the first block of information and the component for the second block of information to plot together. By default the components are set to c(1,2) if \code{combined=FALSE} and to c(1,1) if \code{combined=TRUE}.
+#' @param what Either "scores" or "loadings"
+#' @param type Either "common", "individual" or "both"
+#' @param combined Logical indicating whether to make a simple plot of two components from one block, or components from different blocks
+#' @param block Which block to plot, either "1" or "2" or the name of the block.
+#' @param color Character specifying a pData column from the original data to use to color points
+#' @param shape Character specifying a pData column to select point shape
+#' @param labels Character specifying a pData column from which to take point labels
+#' @param background Logical specifying whether to make a grey background
+#' @param palette Vector giving the color palette for the plot
+#' @param pointSize Size of plot points
+#' @param labelSize Size of point labels if not NULL
+#' @param axisSize Size of axis text
+#' @param titleSize Size of title text
+#' @return \code{ggplot} object
+#' @author Patricia Sebastian-Leon
+#' @examples
+#' data("STATegRa_S3")
+#' B1 <- createOmicsExpressionSet(Data=Block1.PCA,pData=ed.PCA,
+#'                                pDataDescr=c("classname"))
+#' B2 <- createOmicsExpressionSet(Data=Block2.PCA,
+#'                                pData=ed.PCA,pDataDescr=c("classname"))
+#' # Omics components analysis
+#' discoRes <- omicsCompAnalysis(Input=list(B1,B2),Names=c("expr","mirna"),
+#'                               method="DISCOSCA",Rcommon=2,Rspecific=c(2,2),
+#'                               center=TRUE,scale=TRUE,weight=TRUE)
+#' jiveRes <- omicsCompAnalysis(Input=list(B1,B2),Names=c("expr","mirna"),
+#'                              method="JIVE",Rcommon=2,Rspecific=c(2,2),
+#'                              center=TRUE,scale=TRUE,weight=TRUE)
+#' 
+#' o2plsRes <- omicsCompAnalysis(Input=list(B1,B2),Names=c("expr","mirna"),
+#'                               method="O2PLS",Rcommon=2,Rspecific=c(2,2),
+#'                               center=TRUE,scale=TRUE,weight=TRUE)
+#' 
+#' # Scatterplot of scores variables associated to common components
+#' 
+#' # DISCO-SCA
+#' plotRes(object=discoRes,comps=c(1,2),what="scores",type="common",
+#'         combined=FALSE,block="",color="classname",shape=NULL,labels=NULL,
+#'         background=TRUE,palette=NULL,pointSize=4,labelSize=NULL,
+#'         axisSize=NULL,titleSize=NULL)
+#' # JIVE
+#' plotRes(object=jiveRes,comps=c(1,2),what="scores",type="common",
+#'        combined=FALSE,block="",color="classname",shape=NULL,labels=NULL,
+#'         background=TRUE,palette=NULL,pointSize=4,labelSize=NULL,
+#'         axisSize=NULL,titleSize=NULL)
+#' 
+#' # O2PLS
+#' # Scatterplot of scores variables associated to common components
+#' # Associated to first block
+#' p1 <- plotRes(object=o2plsRes,comps=c(1,2),what="scores",type="common",
+#'               combined=FALSE,block="expr",color="classname",shape=NULL,
+#'               labels=NULL,background=TRUE,palette=NULL,pointSize=4,
+#'               labelSize=NULL,axisSize=NULL,titleSize=NULL)
+#' # Associated to second block
+#' p2 <- plotRes(object=o2plsRes,comps=c(1,2),what="scores",type="common",
+#'               combined=FALSE,block="mirna",color="classname",shape=NULL,
+#'               labels=NULL,background=TRUE,palette=NULL,pointSize=4,
+#'               labelSize=NULL,axisSize=NULL,titleSize=NULL)
+#' 
+#' # Combined plot of scores variables assocaited to common components
+#' plotRes(object=o2plsRes,comps=c(1,1),what="scores",type="common",
+#'         combined=TRUE,block="",color="classname",shape=NULL,
+#'         labels=NULL,background=TRUE,palette=NULL,pointSize=4,
+#'         labelSize=NULL,axisSize=NULL,titleSize=NULL)
+#' 
+#' # Loadings plot for individual components
+#' # Separately for each block
+#' p1 <- plotRes(object=discoRes,comps=c(1,2),what="loadings",type="individual",
+#'               combined=FALSE,block="expr",color="classname",shape=NULL,
+#'               labels=NULL,background=TRUE,palette=NULL,pointSize=4,
+#'               labelSize=NULL,axisSize=NULL,titleSize=NULL)
+#' p2 <- plotRes(object=discoRes,comps=c(1,2),what="loadings",type="individual",
+#'               combined=FALSE,block="mirna",color="classname",shape=NULL,
+#'               labels=NULL,background=TRUE,palette=NULL,pointSize=4,
+#'               labelSize=NULL,axisSize=NULL,titleSize=NULL)
+#' 
+#' # Combined plot
+#' plotRes(object=discoRes,comps=c(1,1),what="loadings",type="individual",
+#'         combined=TRUE,block="",color="classname",shape=NULL,
+#'         labels=NULL,background=TRUE,palette=NULL,pointSize=4,
+#'         labelSize=NULL,axisSize=NULL,titleSize=NULL)
 setGeneric(
     name="plotRes",
     def=function(object,comps=c(1,2),what,type,combined,block,color=NULL,shape=NULL,labels=NULL,background=TRUE,palette=NULL,pointSize=4,

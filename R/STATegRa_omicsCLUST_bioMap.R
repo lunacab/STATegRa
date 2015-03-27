@@ -1,6 +1,7 @@
 
 ########  CLASS CONNECTING ELEMENTS
-
+# we need `methods` for all the setClass/setMethod/setGeneric stuff, importing it arbitarily here
+#' @import methods
 setClass("bioMap",
          slots = c(name = "character",
                    metadata = "list",
@@ -138,6 +139,22 @@ setReplaceMethod(
 
 ###### CONSTRUCTOR
 
+#' @export
+#' @title bioMap
+#' @description Function to generate a bioMap object.
+#' @usage bioMap(name, metadata, map)
+#' @param name Name to assign the object
+#' @param metadata A list with information of the mapping. Elements expected in the list are: (1) "type_v1" and "type_v2", refer to the nature of the features mapped; a vocabulary we recommend is "gene", "mRNA", "miRNA", "proteins", etc. (2) "source_database", provides information on the source of the mapping; from a specific data-base e.g. "targetscan.Hs.eg.db" to a genomic location mapping. (3) "data_extraction" stores information on the data the mapping was generated or downloaded.
+#' @param map A data.frame object storing the mapping. The data.frame may inclue an unlimited number of columns, however the first column must be named "Var1" and refer to the elements of "type_v1" and simmilarly for the second column ("Var2", "type_v2").
+#' @return An object of class \code{bioMap}
+#' @author David Gomez-Cabrero
+#' @examples 
+#' data(STATegRa_S2)
+#' map.gene.miRNA<-bioMap(name = "Symbol-miRNA",
+#'                        metadata = list(type_v1="Gene",type_v2="miRNA",
+#'                                        source_database="targetscan.Hs.eg.db",
+#'                                        data_extraction="July2014"),
+#'                        map=mapdata)
 bioMap <- function(name, metadata, map)
 {
     new("bioMap", name=name, metadata=metadata, map=map)

@@ -1,0 +1,34 @@
+# This file contains no code, it just serves to hold roxygen documentation comments
+# for the package and data files so that we can do away with all Rd files
+
+#' @title STATegRa
+#' @name STATegRa
+#' @aliases STATegRa-package
+#' @docType package
+#' @description
+#' STATegRa is a package for the integrative analysis of multi-omic data-sets.
+#'
+#' For full information, see the user's guide.
+#' @seealso \code{\link{STATegRaUsersGuide}}
+NULL
+
+#' @title STATegRa data
+#' @name STATegRa_data
+#' @aliases Block1 Block2 ed mapdata Block1.PCA Block2.PCA ed.PCA
+#' @docType data
+#' @format Two matrices with mRNA and miRNA expression data, a design matrix that describes both and a mapping between miRNA and genes.
+#' @description
+#' mRNA data (\code{Block1}), miRNA data (\code{Block2}) and the design matrix (\code{ed}), from \code{STATegRa_S1}, provides selected data downloaded from \url{https://tcga-data.nci.nih.gov/docs/publications/gbm_exp/}. The mapping between miRNA and mRNA (\code{mapdata}, available in \code{STATegRa_S2}) contains, as a processed matrix, selected information available from TargetScan; we selected the set of miRNA target predictions for humans for those miRNA-mRNA pairs where both miRNA and mRNA were in \code{Block1} and \code{Block2} respectively. 
+#'
+#' The PCA version of the data (\code{Block1.PCA}, \code{Block2.PCA}, \code{ed.PCA}; available in \code{STATegRa_S3}), provides a similar data-set to \code{Block1}, \code{Block2} and \code{ed} data; however in this case the data has been processed in order to provide a pedagogic example of OmicsPCA. Results obtained from OmicsPCA (\code{\link{omicsCompAnalysis}}) with the existing data should not be taken as clinically valid.
+#'
+#' @source
+#' (a)  See \url{https://tcga-data.nci.nih.gov/docs/publications/gbm_exp/}.
+#' (b)  Gabor Csardi, \code{targetscan.Hs.eg.db}: TargetScan miRNA target predictions for human. R package version 0.6.1
+#'
+#' @author David Gomez-Cabrero, Patricia Sebastian-Leon, Gordon Ball
+#' @examples
+#' data(STATegRa_S1)
+#' data(STATegRa_S2)
+#' data(STATegRa_S3)
+NULL

@@ -1,3 +1,4 @@
+#' @include STATegRa_omicsCLUST_bioMap.R
 
 ################################################################################
 ##### bioDistw CLASS
@@ -68,6 +69,18 @@ setMethod(
 
 # bioDistW CLASS --------------------------------------------------------
 
+#' @export
+#' @title bioDistW
+#' @aliases bioDistW,character,list,matrix-method
+#' @description 
+#' Function that computes weighted distances between a list of bioDistclass objects.
+#' @usage bioDistW(referenceFeatures, bioDistList, weights)
+#' @param referenceFeatures The set of features that weighted distance is computed between.
+#' @param bioDistList A list of bioDistclass objects. All the objects must contain the set of features selected.
+#' @param weights A matrix where the number of columns equals the number of elements included in the bioDistList list.
+#' @return Returns a list of bioDistWclass objects. Each element in the list returns the weighted distance associated to each row in the "weights" matrix.
+#' @author David Gomez-Cabrero
+#' @template omicsCLUST_examples_common
 setGeneric(
     name= "bioDistW",
     def=function(referenceFeatures,
@@ -154,9 +167,19 @@ setMethod(
         listDistW
     })
 
-########## COMPUTE THE DISTANCES FOR A GIVEN RELEVANT GENE
-# listDistW<-bioDistWList
 
+#' @export
+#' @title bioDistFeature
+#' @aliases bioDistFeature,character,list,numeric-method
+#' @description 
+#' Function that computes for a given selected feature the closest features given a selected set of weighted distances.
+#' @usage bioDistFeature(Feature, listDistW, threshold.cor)
+#' @param Feature Feature A selected as a reference.
+#' @param listDistW A list of bioDistWclass objects. All the objects must contain the Feature A selected and all of them must contain the same set of features.
+#' @param threshold.cor A threshold to select the features associated to Feature A
+#' @return Matrix with the associated features given the different weighted distances considered
+#' @author David Gomez-Cabrero
+#' @template omicsCLUST_examples_common
 setGeneric(
     name= "bioDistFeature",
     def=function(Feature,
@@ -204,9 +227,19 @@ setMethod(
 )
 
 
-########## COMPUTE THE DISTANCES BETWEEN THEM AND PLOT THEM.
-# listDistW<-bioDistWList
-
+#' @export
+#' @import calibrate
+#' @title bioDistWPlot
+#' @aliases bioDistWPlot,character,list,character-method
+#' @description 
+#' Function that plots the "distance relation" between features computed through different surrogate features.
+#' @usage bioDistWPlot(referenceFeatures, listDistW, method.cor)
+#' @param referenceFeatures The set of features to be used.
+#' @param listDistW A list of bioDistWclass objects.
+#' @param method.cor Method to compute distances between the elements in the listDistW. The default is spearman correlation.
+#' @return Makes a plot with the projected distance between the listDistW objects.
+#' @author David Gomez-Cabrero
+#' @template omicsCLUST_examples_common
 setGeneric(
     name= "bioDistWPlot",
     def=function(referenceFeatures,
@@ -275,7 +308,16 @@ setMethod(
 
 )
 
-
+#' @export
+#' @import gplots
+#' @title bioDistFeaturePlot
+#' @description 
+#' Function that pltos the results from a bioDistFeature analysis
+#' @usage bioDistFeaturePlot(data)
+#' @param data Matrix produced by \code{bioDistFeature}
+#' @return Generates a heatmap plot
+#' @author David Gomez-Cabrero
+#' @template omicsCLUST_examples_common
 bioDistFeaturePlot<-function(data)
 {
     colors = c(seq(-1,0,length=100),seq(0,1,length=100))
