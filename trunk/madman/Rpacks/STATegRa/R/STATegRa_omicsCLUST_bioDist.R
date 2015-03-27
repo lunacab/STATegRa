@@ -1,5 +1,4 @@
-
-
+#' @include STATegRa_omicsCLUST_bioMap.R
 
 ##################################
 ###### PART2: CLASS FOR THE DISTANCES
@@ -116,9 +115,18 @@ setReplaceMethod(
 
 ###### CONSTRUCTOR
 
-bioDistclass <- function(name ,distance,map.name,map.metadata,params)
+#' @export
+#' @title bioDistclass
+#' @description Class to manage mappings between genomic features.
+#' @usage bioDistclass(name, distance, map.name, map.metadata, params)
+#' @param name Name assigned to the object
+#' @param distance Matrix giving the distance between features
+#' @param map.name Charactering giving the name of the bioMap object used to compute the distance
+#' @param map.metadata List of parameters used to generate the mapping
+#' @param params List of parameters used to generate the distance
+bioDistclass <- function(name, distance, map.name, map.metadata, params)
 {
-    new("bioDistclass", name=name,distance=distance, map.name=map.name, map.metadata=map.metadata,params=params)
+    new("bioDistclass", name=name, distance=distance, map.name=map.name, map.metadata=map.metadata, params=params)
 }
 
 ######  bioAggregate function
@@ -276,11 +284,34 @@ setMethod(
     }
 )
 
-################################################################################
-##### bioDist CLASS
-######## this one computes the distance through surrogates features.
-################################################################################
 
+#' @export
+#' @title bioDist
+#' @aliases bioDist,character,character,bioMap,ExpressionSet,ExpressionSet-method
+#' @description 
+#' Function to compute a bioDistclass object from profile data and a mapping. For details of the process see the user's guide, but briefly the process involves using the mapping to identify reference features appropriate to each surrogate feature (if any), aggregating the surrogate data into pseudo-data for each reference feature, and then calculating the correlation distance between the reference features according to the surrogate data.
+#' @usage bioDist(referenceFeatures=NULL, reference=NULL, mapping=NULL, 
+#'                referenceData=NULL, surrogateData=NULL, filtering=NULL, 
+#'                noMappingDist=NA, distance="spearman", aggregation="sum", 
+#'                maxitems=NULL, selectionRule="maxFC", expfac=NULL, 
+#'                name=NULL, ...)
+#' @param referenceFeatures subset of features to be considered for the computation of the distances. If NULL then the features are first gathered from the features in referenceData. If referenceData is not provided then the list of features are gathered from mapping (bioMap class) and using the reference.
+#' @param reference A character indicating the variable that is being used as features to compute distance between
+#' @param mapping The mapping between feature types
+#' @param referenceData ExpressionSet object with the data from the reference features.
+#' @param surrogateData ExpressionSet object with the data from the surrogate features.
+#' @param filtering A filtering for the bioMap class. To be implemented.
+#' @param noMappingDist Distance value to be used when a reference feature do not map to any surrogate feature.  If "max", maximum indirect distance among the rest of reference features is taken. If NA, distance weights are re-scaled so this surrogate association is not considered. If a number then the missing values are replaces with that value.
+#' @param distance Distance between features to be computed. Possible values are "pearson", "kendall", "spearman", "euclidean", "maximum", "manhattan", "canberra", "binary" and "minkowski". Default is "spearman".
+#' @param aggregation Action to perform when a reference feature maps to more than one surrogate feature. Options are "max", "sum", "mean" or "median"  and the the values are aggregated according to the chosen statistic.
+#' @param maxitems The maximum number of surrogate features per reference feature to be used, selected according to "selectionRule" parameter. Default is 2.
+#' @param selectionRule Rule to select the surrogate features to be used (the number is determined by "maxitems"). It can be one of the following: (1)  "maxcor" those presenting maximum correlation with corresponding main feature; in this case "referenceData" must be provided and the columns must overlap in at least 3 samples; (2) "maxmean": average across samples is computed and those features with higher mean are selected;  case (3) is simmilar to (2) but considering other statistics: "maxmedian", "maxdiff", "maxFC", "sd" , "ee".
+#' @param expfac Not in use yet.
+#' @param name Character that describes the nature of the bioDist class computed
+#' @param ... extra arguments passed to \code{\link{dist}}, eg "p=value" for the power used if calculating minkowski distance
+#' @return An object of class \code{bioDistclass} containing distances between the features in \code{surrogateData}.
+#' @author David Gomez-Cabrero
+#' @template omicsCLUST_examples_common
 setGeneric(
     name= "bioDist",
     def=function(referenceFeatures = NULL,

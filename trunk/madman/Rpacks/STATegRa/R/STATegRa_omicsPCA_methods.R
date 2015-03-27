@@ -774,9 +774,50 @@ setMethod(
 ##    weight: (logical): Have blocks be weighted?
 ## OUTPUT:
 ##    An object of class 'caClass'
+
+#' @export
+#' @title Components analysis for multiple objects
+#' @aliases omicsCompAnalysis,list,character,character,numeric,numeric-method
+#' @description
+#' This function performs a components analysis of object wise omics data to understand the mechanisms that underlay all the data blocks under study (common mechanisms) and the mechanisms underlying each of the data block independently (distinctive mechanisms). This analysis include both, the preprocessing of data and the components analysis by using three different methodologies.
+#' @usage omicsCompAnalysis(Input, Names, method, Rcommon, Rspecific, 
+#'                          convThres=1e-10, maxIter=600, center=FALSE, 
+#'                          scale=FALSE, weight=FALSE)
+#' 
+#' @param Input List of \code{ExpressionSet} objects, one for each block of data.
+#' @param Names Character vector giving names for each Input object.
+#' @param method Method to use for analysis (either "DISCOSCA", "JIVE", or "O2PLS").
+#' @param Rcommon Number of common components between all blocks
+#' @param Rspecific Vector giving number of unique components for each input block
+#' @param convThres Stop criteria for convergence
+#' @param maxIter Maximum number of iterations
+#' @param center Character (or FALSE) specifying which (if any) centering will be applied before analysis. Choices are "PERBLOCKS" (each block separately) or "ALLBLOCKS" (all data together).
+#' @param scale Character (or FALSE) specifying which (if any) scaling will be applied before analysis. Choices are "PERBLOCKS" (each block separately) or "ALLBLOCKS" (all data together).
+#' @param weight Logical indicating whether weighting is to be done.
+#' 
+#' @return An object of class \code{\link{caClass-class}}.
+#' 
+#' @author Patricia Sebastian Leon
+#' 
+#' @examples
+#' data("STATegRa_S3")
+#' B1 <- createOmicsExpressionSet(Data=Block1.PCA,pData=ed.PCA,
+#' pDataDescr=c("classname"))
+#' B2 <- createOmicsExpressionSet(Data=Block2.PCA,
+#'                                pData=ed.PCA,pDataDescr=c("classname"))
+#' # Omics components analysis
+#' discoRes <- omicsCompAnalysis(Input=list(B1,B2),Names=c("expr","mirna"),
+#'                               method="DISCOSCA",Rcommon=2,Rspecific=c(2,2),
+#'                               center=TRUE,scale=TRUE,weight=TRUE)
+#' jiveRes <- omicsCompAnalysis(Input=list(B1,B2),Names=c("expr","mirna"),
+#'                              method="JIVE",Rcommon=2,Rspecific=c(2,2),
+#'                              center=TRUE,scale=TRUE,weight=TRUE)
+#' o2plsRes <- omicsCompAnalysis(Input=list(B1,B2),Names=c("expr","mirna"),
+#'                               method="O2PLS",Rcommon=2,Rspecific=c(2,2),
+#'                               center=TRUE,scale=TRUE,weight=TRUE)
 setGeneric(
     name="omicsCompAnalysis",
-    def=function(Input,Names,method,Rcommon,Rspecific,convThres=10^(-10),maxIter=600,center=FALSE,scale=FALSE,weight=FALSE){
+    def=function(Input,Names,method,Rcommon,Rspecific,convThres=1e-10,maxIter=600,center=FALSE,scale=FALSE,weight=FALSE){
         standardGeneric("omicsCompAnalysis")}
 )
 
@@ -901,6 +942,31 @@ setMethod(
 ## Rmax: (numeric) Maximum number of common components
 ## OUTPUT:
 ## (numeric) Optimal number of common components
+#' @import ggplot2
+#' @import MASS
+#' @export
+#' @title Select common components in two data blocks
+#' @aliases selectCommonComps,matrix,matrix,numeric-method
+#' @description 
+#' This function applies a Simultaneous Component Analysis (SCA). The idea is that the scores for both blocks should have a similar behaviour if the components are in the common mode. Evaluation is by the ratios between the explained variances (SSQ) of each block and the estimator. The highest component count with 0.8 < ratio < 1.5 is selected.
+#' @usage selectCommonComps(X, Y, Rmax)
+#' @param X Matrix of omics data
+#' @param Y Matrix of omics data
+#' @param Rmax Maximum number of common components to find
+#' @return A list with components:
+#' \describe{
+#'      \item{common}{Optimal number of common components}
+#'      \item{ssqs}{Matrix of SSQ for each block and estimator}
+#'      \item{pssq}{\code{\link{ggplot}} object showing SSQ for each block and estimator}
+#'      \item{pratios}{\code{\link{ggplot}} object showing SSQ ratios between each block and estimator}
+#' }
+#' @author Patricia Sebastian-Leon
+#' @examples
+#' data(STATegRa_S3)
+#' cc <- selectCommonComps(X=Block1.PCA, Y=Block2.PCA, Rmax=3)
+#' cc$common
+#' cc$pssq
+#' cc$pratios
 setGeneric(
     name="selectCommonComps",
     def=function(X,Y,Rmax){standardGeneric("selectCommonComps")}
@@ -981,6 +1047,27 @@ setMethod(
 ## OUTPUT: (list)
 ## - PCAres: (list) Results of the PCA of the data
 ## - numComps: (numeric) Number of selected components applying the selected criterium
+#' @export
+#' @title Select an optimal number of components using PCA
+#' @aliases PCA.selection,matrix,character-method
+#' @description 
+#' Selects the optimal number of components from data using PCA. There are four different criteria available: accumulated variance explained, individual explained variance of each component, absolute value of variability or fixed number of components.
+#' @usage PCA.selection(Data, fac.sel, varthreshold=NULL, nvar=NULL, PCnum=NULL)
+#' @param Data Data matrix (with samples in columns and features in rows)
+#' @param fac.sel Selection criteria ("\%accum", "single\%", "rel.abs", "fixed.num")
+#' @param varthreshold Threshold for "\%accum" or "single\%" criteria
+#' @param nvar Threshold for "rel.abs"
+#' @param PCnum Fixed number of components for "fixed.num"
+#' @return List containing:
+#' \describe{
+#'      \item{PCAres}{List containing results of PCA, with fields "eigen", "var.exp", "scores" and "loadings"}
+#'      \item{numComps}{Number of components selected}
+#' }
+#' @author Patricia Sebastian Leon
+#' @examples 
+#' data(STATegRa_S3)
+#' ps <- PCA.selection(Data=Block2.PCA, fac.sel="single%", varthreshold=0.03)
+#' ps$numComps
 setGeneric(
     name="PCA.selection",
     def=function(Data,fac.sel,varthreshold=NULL,nvar=NULL,PCnum=NULL){standardGeneric("PCA.selection")}
@@ -1023,6 +1110,31 @@ setMethod(
 ## OUTPUT: (list)
 ## - common: Number of optimal common components
 ## - dist: Number of optimal distictive components for each block
+#' @export
+#' @title Find optimal common and distinctive components
+#' @aliases modelSelection,list,numeric,character-method
+#' @description 
+#' Uses \code{\link{selectCommonComps}} and \code{\link{PCA.selection}} to estimate the optimal number of common and distinctive components according to given selection criteria.
+#' @usage modelSelection(Input, Rmax, fac.sel, varthreshold=NULL, nvar=NULL, PCnum=NULL)
+#' @param Input List of two ExpressionSet objects
+#' @param Rmax Maximum common components (see \code{\link{selectCommonComps}})
+#' @param fac.sel PCA criteria (see \code{\link{PCA.selection}})
+#' @param varthreshold Cumulative variance criteria (see \code{\link{PCA.selection}})
+#' @param nvar Relative variance criteria (see \code{\link{PCA.selection}})
+#' @param PCnum Fixed component number (see \code{\link{PCA.selection}})
+#' @return List containing:
+#' \describe{
+#'      \item{common}{Number of common components}
+#'      \item{dist}{Number of distinct components per input block}
+#' }
+#' @author Patricia Sebastian-Leon
+#' @seealso \code{\link{selectCommonComps}},\code{\link{PCA.selection}},\code{\link{omicsCompAnalysis}}
+#' @examples
+#' data(STATegRa_S3)
+#' B1 <- createOmicsExpressionSet(Data=Block1.PCA,pData=ed.PCA,pDataDescr=c("classname"))
+#' B2 <- createOmicsExpressionSet(Data=Block2.PCA,pData=ed.PCA,pDataDescr=c("classname"))
+#' ms <- modelSelection(Input=list(B1, B2), Rmax=4, fac.sel="single\%", varthreshold=0.03)
+#' ms
 setGeneric(
     name="modelSelection",
     def=function(Input,Rmax,fac.sel,varthreshold=NULL,nvar=NULL,PCnum=NULL){standardGeneric("modelSelection")}
