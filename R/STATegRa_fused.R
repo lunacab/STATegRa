@@ -1,16 +1,29 @@
-####### DATA MANAGEMENT #######
-
-# CreateOmicsExpressionSet ------------------------------------------------
-## Function to create a omics Expression datasets given the information separately in three matrices.
-## Matrices about phenotype and features are optional
-## INPUT:
-##    Data: (matrix) Omics data
-##    pData=NULL: (matrix) Data associated to the samples/phenotype (columns). rownames(pData)==colnames(exprs)
-##    pDataDescr=NULL:  (matrix) Description of the phenotypic data
-##    feaData=NULL: (matrix) Data associated to the variables/features annotation (rows). rownames(fData)==rownames(exprs)
-##    feaDataDescr=NULL: (matrix) Description of the feature annotation
-## OUTPUT:
-##    ExpressionSet with the data provided
+#' @export
+#' @import Biobase
+#' @title createOmicsExpressionSet
+#' @aliases createOmicsExpressionSet,matrix-method
+#'
+#' @description
+#' This function allow to the user to create a ExpressionSet object from a matrix representing an omics dataset. It allows to include the experimental design and annotation in the ExpressionSet object.
+#'
+#' @details
+#' In Data matrix, samples has to be in columns and variables has to be in rows
+#'
+#' @param Data Omics data
+#' @param pData Data associated with the samples/phenotype
+#' @param pDataDescr Description of the phenotypic data
+#' @param feaData Data associated with the variables/features annotation
+#' @param feaDataDescr Description of the feature annotation
+#' @return ExpressionSet with the data provided
+#' @author Patricia Sebastian-Leon
+#' @keywords datagen
+#'
+#' @examples
+#' data(STATegRa_S3)
+#' B1 <- createOmicsExpressionSet(Data=Block1.PCA,pData=ed.PCA,
+#'                                pDataDescr=c("classname"))
+#' B2 <- createOmicsExpressionSet(Data=Block2.PCA,pData=ed.PCA,
+#'                                pDataDescr=c("classname"))
 setGeneric(
     name="createOmicsExpressionSet",
     def=function(Data,pData=NULL,pDataDescr=NULL,feaData=NULL,feaDataDescr=NULL){
@@ -68,6 +81,17 @@ setMethod(
 )
 
 
+#' @export
+#' @title STATegRaUsersGuide
+#'
+#' @description Finds the location of the STATegRa User's Guide and optionally opens it.
+#'
+#' @param view Whether to open a browser
+#' @return The path to the documentation
+#' @author David Gomez-Cabrero
+#'
+#' @examples
+#' STATegRaUsersGuide(view=FALSE)
 STATegRaUsersGuide <- function(view=TRUE)
     #	Find and optionally view edgeR STATegRa Guide
     #	David Gomez-Cabrero, following Gordon Smyth example on edgeR
