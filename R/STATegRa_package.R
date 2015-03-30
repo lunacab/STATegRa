@@ -32,3 +32,28 @@ NULL
 #' data(STATegRa_S2)
 #' data(STATegRa_S3)
 NULL
+
+#' @title STATegRa data
+#' @name STATegRa_data_TCGA_BRCA
+#' @aliases TCGA_BRCA_Data
+#' @docType data
+#' @format One list, which contains three ExpressionSet objects.
+#' @description
+#'
+#' Data were downloaded from TCGA data portal, \url{https://tcga-data.nci.nih.gov/tcga/}.
+#' We downloaded sixteen tumour samples and the sixteen matching normal, for Breast invasive carcinoma, BRCA, batch 93.
+#' Herein, three types of data modalities are included, RNAseq (\code{TCGA_BRCA_Data$RNAseq}), RNAseqV2 (\code{TCGA_BRCA_Data$RNAseqV2})
+#' and Expression-Genes (\code{TCGA_BRCA_Data$Microarray}). The “Data Level” was set to Level 3.
+#' More information about these types of data as well as the "data level" can be found \url{https://tcga-data.nci.nih.gov/tcga/tcgaDataType.jsp}
+#' For each data type, we pooled all data to one matrix, where rows corresponded to genes and columns to samples.
+#' Then, columns and rows were aligned across matrices so as each gene and each sample to correspond to the same position.
+#' Here only the first 100 genes are included.
+#'
+#' @source
+#' See \url{https://tcga-data.nci.nih.gov/tcga/}.
+#'
+#' @author Nestoras Karathanasis
+#' @examples
+#' # load data
+#' data(TCGA_BRCA_Batch_93)
+NULL
