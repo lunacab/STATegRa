@@ -42,6 +42,11 @@ The `STATegRa` package implements two main utilities for this purpose: component
 [Clustering](#omics-clustering)
  ~  Methods are provided to cluster together features across different omics types, with a view to finding interesting similarities between features (rather than similarities between samples).
 
+Furthermore, the next important step is the identification of genes, which are differential expressed between the experimental conditions under study, according to the different data types considered as a whole. The `STATegRa` package provides the possibility to identify differential expressed genes which are supported by at least one or more data types. One main utility is implemented for this purpose: holistOmics. 
+
+[HolistOmics](#HolistOmics)
+ ~  HolistOmics, which is specifically devised for ‘holistically’ combining different omics data, identifies differentially expressed genes between the experimental conditions under study. It applies the NonParametric Combination (NPC) methodology [@Pesarin2010] in order to combine all available information to identify genes which are supported by at least one or more data types. 
+ 
 This guide provides an overview of the different techniques included in the package, some worked examples of using the tools and some guidance on interpretation of the results obtained.
 
 # Getting Started
@@ -645,6 +650,112 @@ bioDistFeaturePlot(data=IDH1.F)
 ### OmicsClustering Requirements
 The requirements for running OmicsClustering are minimal. The data considered has to be compatible with the distance measure selected. The relevant aspect is that the mapping between features needs to be `informative enough`. We do not consider the use of OmicsClustering when the mapping between features involves less than 15-25% of the reference set of features; this number was obtained from preliminary analysis over few data sets however further investigation is being conducted.
 
+# HolistOmics
 
+```{r, echo=F, message=F}
+# clear the environment before starting the holistOmics example
+rm(list=ls())
+```
+
+## Overview
+
+### The Problem
+In recent years, the advantages of omics technologies made possible to measure several data modalities (ChIP-sequencing, RNA-sequencing, protein expression) on a system of interest, in both treated and untreated samples. In such settings one of the most common and important biological questions is the identification of genes, which are differential expressed between the two conditions, according to the different data modalities considered as a whole.
+
+### The holistOmics Approach
+HolistOmics is a novel application of the Non Parametric Combination (NPC) methodology [@Pesarin2010], specifically tailored for the idiosyncrasies of omics data. First, each datatype is analyzed independently using the appropriate method. Currently, holistOmics analyses static(one time point) RNAseq data, using voom+limma method, and static microarray data, using limma. In the future holistOmics will be extended to analyse more types of data as well as data with several time points measurements. The resulting p-values are combined employing Fisher, Liptak and Tippett combining functions. Tippett function returns findings which are supported by at least one omics modality. Liptak function returns findings which are supportd by most modalities. Fisher function has an intermediate behavior between those of Tippett and Liptak.
+
+Several important features make the application appropriate to solve the problem under discussion. A) HolistOmics is able to perform integrative analysis of different data modalities employing **minimal assumptions**, as permutation is employed throughout the process. B) Its final output is a **p-value** that is an easily interpretable metric. C) It is characterized by **great flexibility** as it returns results, which are supported by at least one modality and assigns a lower p-value to findings which are supported by more modalities. D) It frees the researcher from the necessity to define and **model the dependence relations** among different data modalities [@Pesarin2010].
+
+A worked example with code is given below.
+
+## Usage
+
+### Loading the data
+
+For this example we use an existing TCGA^[The Cancer Genome Atlas, <http://cancergenome.nih.gov>] data-set. We downloaded sixteen tumour samples and the sixteen matching normal, for Breast invasive carcinoma, BRCA, batch 93. We used three types of data modalities, “RNAseq”, “RNAseqV2” and “Expression-Gene”. The “Data Level” was set to Level 3. RNAseq corresponds to RNA sequensing data, IlluminaHiSeq-RNASeq platform, RNAseqV2 corresponds to RNA sequensing data, IlluminaHiSeq-RNASeqV2 platform and Expression-Gene corresponds to array based expression data, AgilentG4502A-07-3 platform. More information concerning data types can be fould here: <https://tcga-data.nci.nih.gov/tcga/tcgaDataType.jsp>. For RNAseq and RNAseqV2 data we keep the "raw counts". For each data type, we pooled all data to one matrix, where rows corresponded to genes and columns to samples. Then, we aligned columns and rows across matrices so as each gene and each sample to correspond to the same position. In this example the first 100 genes will be used. Finally, each matrix converted to an ExpressionSet object and the resulting objects were saved in a list.
+
+The datasets can be loaded by typing:
+
+```{r}
+data("TCGA_BRCA_Batch_93")
+ls()
+```
+
+`TCGA_BRCA_Data` is a list, which includes three objects of the ExpressionSets class. The matrixes containing the expression values can be visualized by typing:
+
+```{r, results='hide'}
+exprs(TCGA_BRCA_Data$RNAseq) # displays the RNAseq data
+exprs(TCGA_BRCA_Data$RNAseqV2) # displays the RNAseqV2 data
+exprs(TCGA_BRCA_Data$Microarray) # displays the Exp-Gene data
+```
+
+Each row corresponds to a gene and each column to a sample. Normal samples are located from column 1 to 16, whereas tumor samples are located from column 17 to 32.
+
+The class of each sample can be visualized by typing
+
+```{r, results='hide'}
+pData(TCGA_BRCA_Data$RNAseq) # class of RNAseq samples
+pData(TCGA_BRCA_Data$RNAseqV2) # class of RNAseqV2 samples
+pData(TCGA_BRCA_Data$Microarray) # class of Exp-Gene samples
+```
+
+Please note that genes and samples are the same across all types of data. 0 corresponds to normal samples and 1 to tumor samples.
+
+### Setting the dataTypes variable
+The dataTypes includes a character vector with possible values: 'RNA-seq', 'Microarray'.
+Three ExpressionSets are analyzed in this example, RNAseq, RNAseqV2 and Microarray. The dataTypes includes three strings, the first two are "RNAseq" and the third is "Microarray". The ExpressionSets, which correspond to "RNAseq", are analyzed employing voom+limma method whereas ExpressionSets, which correspond to "Microarray", are analyzed using limma method.
+
+```{r}
+dataTypes <- c("RNAseq", "RNAseq", "Microarray")
+```
+
+### Setting the comb.method variable
+The comb.method is a character vector with possible values: 'Fisher', 'Liptak', 'Tippett'.
+All combining functions can be used simultaneously.
+
+```{r}
+comb.method = c("Fisher", "Liptak", "Tippett")
+```
+
+### Setting numPerm, numCores and verbose variables
+numPerm is the number of permutations to perform. The number of permutations can be adjusted depending on the number of available samples. In general 1000 permutation is usually a good point to start.
+
+```{r}
+numPerm = 1000
+```
+
+HolistOmics can perform the desired permutations in parallel. numCores specifies the number of cores to be used. In this example one core is used, but a higher number could also be set. Using one core this example runs in ~54 seconds whereas using two or eight cores it takes ~52  and ~24 seconds, respectively.
+
+```{r}
+numCores = 1
+```
+
+verbose is a logical. If it is set to TRUE, holistOmics prints out the step that it performs. Here it is set to TRUE.
+
+```{r}
+verbose = TRUE
+```
+
+### Run holistOmics analysis.
+To run holistOmics analysis one main function is available. Run the analysis by typing:
+
+```{r}
+results <- holistOmics(dataInput = TCGA_BRCA_Data, dataTypes = dataTypes, comb.method = comb.method, numPerm = numPerm, numCores = numCores, verbose = verbose)      
+```
+
+Results is a data.frame of p-values.
+Each row corresponds to a gene name. Each column corresponds to a method used in the analysis.
+Columns: 
+
+1. RNAseqPrograms, includes the p-values which are produced by voom+limma when the first data modality (RNAseq) is analyzed.
+2. RNAseqPrograms1, includes the p-values, which are produced by voom+limma when the second data modality (RNAseqV2) is analyzed.
+3. MicroarrayPrograms, includes the p-values, which are produced by limma when the third data modality (Microarray) is analyzed.
+4. RNAseqPerm, includes the p-values, which are produced using permutation and refer to the first data modality, RNAseq.
+5. RNAseqPerm.1,includes the p-values, which are produced using permutation and refer to the second data modality, RNAseqV2.
+6. MicroarrayPerm, includes the p-values, which are produced using permutation and refer to the third data modality, Microarray.
+7. Fisher, includes the p-values, which are produced by combining the p-values from the forth, fifth and sixth columns employing Fisher function.
+8. Liptak, includes the p-values, which are produced by combining the p-values from the forth, fifth and sixth columns employing Liptak function.
+9. Tippett includes the p-values, which are produced by combining the p-values from the forth, fifth and sixth columns employing Tippett function.
 
 # References
