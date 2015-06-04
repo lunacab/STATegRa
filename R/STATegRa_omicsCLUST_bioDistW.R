@@ -320,7 +320,7 @@ setMethod(
 #' @template omicsCLUST_examples_common
 bioDistFeaturePlot<-function(data)
 {
-    colors = c(seq(-1,0,length=100),seq(0,1,length=100))
+    colors = seq(-1, 1, length=200)
     my_palette <- colorRampPalette(c("red", "white", "blue"))(n = 199)
     #par(mar=c(12,2,2,12))#,mai=c(12,2,2,12))
     heatmap.2(t(data),
