@@ -22,7 +22,7 @@ g_legend<-function(a.gplot){
 #' @export
 #' @import ggplot2
 #' @import grid
-#' @import gridExtra
+#' @importFrom gridExtra arrangeGrob grid.arrange
 #' @title Plot VAF (Variance Explained For) from Component Analysis
 #' @aliases plotVAF,caClass-method
 #' @description 
