@@ -70,6 +70,7 @@ setMethod(
 # bioDistW CLASS --------------------------------------------------------
 
 #' @export
+#' @import stats
 #' @title bioDistW
 #' @aliases bioDistW,character,list,matrix-method
 #' @description 
@@ -229,6 +230,8 @@ setMethod(
 
 #' @export
 #' @import calibrate
+#' @importFrom grDevices rgb
+#' @importFrom graphics plot par
 #' @title bioDistWPlot
 #' @aliases bioDistWPlot,character,list,character-method
 #' @description 
@@ -309,7 +312,8 @@ setMethod(
 )
 
 #' @export
-#' @import gplots
+#' @importFrom gplots heatmap.2
+#' @importFrom grDevices colorRampPalette
 #' @title bioDistFeaturePlot
 #' @description 
 #' Function that pltos the results from a bioDistFeature analysis

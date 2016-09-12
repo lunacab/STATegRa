@@ -82,6 +82,7 @@ setMethod(
 
 
 #' @export
+#' @importFrom utils browseURL
 #' @title STATegRaUsersGuide
 #'
 #' @description Finds the location of the STATegRa User's Guide and optionally opens it.
