@@ -26,16 +26,7 @@ holistOmics(dataInput, dataTypes, comb.method = c("Fisher", "Liptak", "Tippett")
 A data.frame
 }
 \description{
-This function applies the NonParametric Combination methodology on the integrative analysis of
-different omics data modalities.
-It retrieves diffential expressed genes between control and treatment, taking into account all omics data.
-First, each datatype is analyzed independently using the appropriate method.
-HolistOmics analyses static (one time point) RNAseq, using Voom+limma method, and static (one time point)
-Microarray, using limma.
-Then, the resulting p-values are combined employing Fisher, Liptak and Tippett combining functions.
-Tippett function returns findings which are supported by at least one omics modality.
-Liptak function returns findings which are supportd by most modalities.
-Fisher function has an intermediate behavior between those of Tippett and Liptak.
+This function is now deprecated. Use omicsNPC instead.
 }
 \examples{
 # Load the data
