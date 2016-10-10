@@ -18,16 +18,7 @@
 #' @title HolistOmics an application of NPC on omics datasets
 #' @aliases holistOmics,list,character-method
 #' @description
-#' This function applies the NonParametric Combination methodology on the integrative analysis of
-#' different omics data modalities.
-#' It retrieves diffential expressed genes between control and treatment, taking into account all omics data.
-#' First, each datatype is analyzed independently using the appropriate method.
-#' HolistOmics analyses static (one time point) RNAseq, using Voom+limma method, and static (one time point)
-#' Microarray, using limma.
-#' Then, the resulting p-values are combined employing Fisher, Liptak and Tippett combining functions.
-#' Tippett function returns findings which are supported by at least one omics modality.
-#' Liptak function returns findings which are supportd by most modalities.
-#' Fisher function has an intermediate behavior between those of Tippett and Liptak.
+#' This function is now deprecated. Use omicsNPC instead.
 #'
 #' @usage holistOmics(dataInput, dataTypes, comb.method = c("Fisher", "Liptak", "Tippett"),
 #'                numPerm = 1000, numCores = 1, verbose = FALSE)
@@ -83,6 +74,10 @@ setMethod(
         dataInput = "list",
         dataTypes = "character"),
     definition=function(dataInput, dataTypes, comb.method, numPerm, numCores, verbose){
+      
+        #This function is deprecated.
+        .Deprecated("omicsNPC");
+      
         # Input check # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         # class names
         classNames <- sapply(dataInput, class)
@@ -90,47 +85,20 @@ setMethod(
 
         # data types
         testDataTypes <- sapply(X = dataTypes, FUN = match.arg, choices = c('RNAseq', 'Microarray'))
+        
+        #changing the data type input
+        dataTypes[dataTypes == 'Microarray'] = 'continuous';
+        dataTypes[dataTypes == 'RNAseq'] = 'count';
 
-        # Create input for internal holistOmics # # # # # # # # # # # # # # # # # # # # # # # #
-        # extract matrices from ExpressionSet
-        dataMatrices <- lapply(dataInput, FUN = exprs)
-        # replicate designs
-        designs <- lapply(X = dataInput, FUN = function(df){out <- pData(df)[[1]]})
+        #Calling omicsNPC
+        output <- omicsNPC(dataInput = dataInput, 
+                           dataTypes = dataTypes,
+                           combMethods = comb.method,
+                           numPerms = numPerm, 
+                           numCores = numCores, 
+                           verbose = verbose);
 
-        #function creating input
-        createListsOfArguments <- function(datatype, argForRNA, argForMicr){
-            if(datatype == "RNAseq"){
-                output <- argForRNA
-            }else{
-                output <- argForMicr
-            }
-            return(output)
-        }
-
-        # functions to analyze data
-        funAnalysis <- lapply(X = dataTypes, FUN = createListsOfArguments,
-                              calcDifferenceRNAseqVoomLimma, calcDifferenceMicroarray)
-        # args of respective functions
-        argsAnalysis <- lapply(X = dataTypes, FUN = createListsOfArguments,
-                               list("verbose" = FALSE), list("verbose" = FALSE))
-
-        # functions to permute data
-        funGenInd <- generate_static_data_index
-        funPerm <- lapply(X = dataTypes, FUN = createListsOfArguments,
-                          permute_static_data, permute_static_data)
-
-        # run holistOmics # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-        output <- holistOmics_internal(Data = dataMatrices, designs = designs,
-                                       comb.method = comb.method,
-                                       types.of.data = dataTypes,
-                                       functions.Analyze.Data = funAnalysis,
-                                       arguments.Analyze.Data = argsAnalysis,
-                                       functions.generate.index = funGenInd,
-                                       functions.permute.Data = funPerm,
-                                       numPerm = numPerm,
-                                       numCores = numCores,
-                                       verbose = verbose)
-
+        #returning the results
         return(output)
 
     }

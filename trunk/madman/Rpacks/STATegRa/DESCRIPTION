@@ -1,8 +1,8 @@
 Package: STATegRa
 Type: Package
 Title: Classes and methods for multi-omics data integration
-Version: 1.7.3
-Date: 2016-09-12
+Version: 1.7.4
+Date: 2016-10-10
 Author: STATegra Consortia
 Maintainer: David Gomez-Cabrero <david.gomezcabrero@ki.se>, Patricia
     Sebastián-León <psebastian@cipf.es>, Gordon Ball <gordon.ball@ki.se>
@@ -38,12 +38,14 @@ Description: Classes and tools for multi-omics data integration.
 License: GPL-2
 LazyLoad: yes
 Collate:
+    'STATegRa_combiningMappings.R'
     'STATegRa_fused.R'
     'STATegRa_holistOmics.R'
-    'STATegRa_holistOmics_internal.R'
     'STATegRa_omicsCLUST_bioMap.R'
     'STATegRa_omicsCLUST_bioDist.R'
     'STATegRa_omicsCLUST_bioDistW.R'
+    'STATegRa_omicsNPC.R'
+    'STATegRa_omicsNPC_internal.R'
     'STATegRa_omicsPCA_caClass.R'
     'STATegRa_omicsPCA_methods.R'
     'STATegRa_omicsPCA_plotting.R'
