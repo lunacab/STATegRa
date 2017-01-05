@@ -21,8 +21,9 @@
 #' @usage omicsNPC(dataInput, dataMapping, dataTypes = rep('continuous', length(dataInput)), 
 #'                combMethods = c("Fisher", "Liptak", "Tippett"), numPerms = 1000, 
 #'                numCores = 1, verbose = FALSE, functionGeneratingIndex = NULL, 
-#'                outcomeName, allCombinations = FALSE, 
-#'                dataWeights = rep(1, length(dataInput))/length(dataInput), ...)
+#'                outcomeName = NULL, allCombinations = FALSE, 
+#'                dataWeights = rep(1, length(dataInput))/length(dataInput), 
+#'                returnPermPvalues = FALSE, ...)
 #'
 #' @param dataInput List of ExpressionSet objects, one for each data modality. 
 #' @param dataMapping A data frame describing how to map measurements across datasets. See details for more information.
@@ -35,12 +36,14 @@
 #' @param outcomeName Name of the outcome of interest / experimental factor, as reported in the design matrices. If NULL, the last column of the design matrices is assumed to be the outcome of interest.
 #' @param allCombinations Logical, if TRUE all combinations of omics datasets are considered
 #' @param dataWeights A vector specifying the weigth to give to each dataset. Note that sum(dataWeights) should be 1.
+#' @param returnPermPvalues Logical, should the p-values computed at each permutation being returned?
 #' @param ... Additional arguments to be passed to the user-defined functions
 #'
 #' @return A list containing:
 #' stats0 Partial deregulation / association statistics 
 #' pvalues0 The partial p-values computed on each dataset
 #' pvaluesNPC The p-values computed through NPC.
+#' permPvalues The p-values computed at each permutation
 #'
 #' @author Nestoras Karathanasis, Vincenzo Lagani
 #'
@@ -48,7 +51,7 @@
 #' Pesarin, Fortunato, and Luigi Salmaso. Permutation tests for complex data: theory, applications and software.
 #' John Wiley & Sons, 2010.
 #' Nestoras Karathanasis, Ioannis Tsamardinos and Vincenzo Lagani. omicsNPC: applying the Non-Parametric Combination 
-#' methodology to the integrative analysis of heterogeneous omics data. Submitted to PlosONE. 
+#' methodology to the integrative analysis of heterogeneous omics data. PlosONE 11(11): e0165545. doi:10.1371/journal.pone.0165545
 #'
 #' @examples
 #' # Load the data
@@ -84,6 +87,7 @@ setGeneric(name="omicsNPC",
                         outcomeName = NULL,
                         allCombinations = FALSE,
                         dataWeights = rep(1, length(dataInput))/length(dataInput),
+                        returnPermPvalues = FALSE,
                         ...)
                {standardGeneric("omicsNPC")}
 )
@@ -93,7 +97,7 @@ setMethod(
     signature=signature(dataInput = "list", dataMapping = 'data.frame'),
     definition=function(dataInput, dataMapping, dataTypes, combMethods, numPerms, 
                         numCores, verbose, functionGeneratingIndex, outcomeName, 
-                        allCombinations, dataWeights, ...){
+                        allCombinations, dataWeights, returnPermPvalues, ...){
         
       # Input check 
 
@@ -165,7 +169,8 @@ setMethod(
                                   numCores = numCores,
                                   verbose = verbose,
                                   allCombinations = allCombinations,
-                                  dataWeights = dataWeights, 
+                                  dataWeights = dataWeights,
+                                  returnPermPvalues = returnPermPvalues,
                                   ...)
 
       #returning the results
@@ -177,7 +182,7 @@ setMethod(
 setMethod(
   f="omicsNPC",
   signature=signature(dataInput = "list", dataMapping = 'missing'),
-  definition=function(dataInput, dataMapping, dataTypes, combMethods, numPerms, numCores, verbose, functionGeneratingIndex, outcomeName, ...){
+  definition=function(dataInput, dataMapping, dataTypes, combMethods, numPerms, numCores, verbose, functionGeneratingIndex, outcomeName, returnPermPvalues, ...){
     
     # Input check 
     
@@ -260,7 +265,8 @@ setMethod(
                                 numCores = numCores,
                                 verbose = verbose,
                                 allCombinations = allCombinations,
-                                dataWeights = dataWeights,                          
+                                dataWeights = dataWeights,
+                                returnPermPvalues = returnPermPvalues,
                                 ...)
     
     #returning the results

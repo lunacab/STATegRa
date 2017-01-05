@@ -14,8 +14,9 @@ omicsNPC_internal <- function(dataMatrices,
                               allCombinations = FALSE,
                               dataWeights = rep(1, length(dataMatrices))/length(dataMatrices),
                               verbose = FALSE,
+                              returnPermPvalues = FALSE,
                               ...){
-
+  
   #### STEP 1 Compute initial statistics ####
   
   #message
@@ -30,7 +31,7 @@ omicsNPC_internal <- function(dataMatrices,
   
   # computing the statistics on the original data
   stats0 <- computeAssociation(dataMatrices = dataMatrices, designs = designs, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName, ...)
-
+  
   #information
   measurements <- dimnames(stats0)[[1]];
   numMeasurements <- length(measurements);
@@ -48,11 +49,13 @@ omicsNPC_internal <- function(dataMatrices,
     # permute designs
     permDesigns <- permutingData(designs = designs, functionGeneratingIndex = functionGeneratingIndex, outcomeName = outcomeName, ...)
 
+
     # recompute pvalues
     tempRes <- computeAssociation(dataMatrices, designs = permDesigns, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName, ...)
     
     #return
     return(tempRes)
+    
   }
 
   # try to run in parallel
@@ -68,8 +71,8 @@ omicsNPC_internal <- function(dataMatrices,
         doSNOW::registerDoSNOW(cl)
     
         # compute DE expression
-        statsPerm <- foreach(i = 1:numPerms) %dopar% executePermutation(...)
-    
+        statsPerm <- foreach(i = 1:numPerms, .packages = 'limma') %dopar% {executePermutation(...)}
+
         #stopping the cluster
         parallel::stopCluster(cl)
         
@@ -79,14 +82,14 @@ omicsNPC_internal <- function(dataMatrices,
       message("Install doSNOW to run omicsNPC in parallel...")
       message("omicsNPC will run using ONE core")
       statsPerm <- foreach(i = 1:numPerms) %do% executePermutation(...)
-      
+
     }
     
   }else{
     
     #running serially
     statsPerm <- foreach(i = 1:numPerms) %do% executePermutation(...)
-    
+
   }
    
   # combining original and permuted statistics in a single list
@@ -155,11 +158,13 @@ omicsNPC_internal <- function(dataMatrices,
       pvaluesNPCTemp <- statisticsToPvalues(statsNPC);
       pvaluesNPCTemp <- aperm(pvaluesNPCTemp, c(2, 3, 1)) # magic numbers!
       
-      #keeping only the relevant pvalues
-      pvaluesNPC[[j]] <- matrix(pvaluesNPCTemp[ , , 1], 
-                           nrow = numMeasurements, 
-                           ncol = numCombMethods, 
-                           dimnames = dimnames(pvaluesNPCTemp)[1:2])
+      #keeping only the relevant pvalues, if not specified otherwise
+      if(!returnPermPvalues){
+        pvaluesNPC[[j]] <- matrix(pvaluesNPCTemp[ , , 1], 
+                             nrow = numMeasurements, 
+                             ncol = numCombMethods, 
+                             dimnames = dimnames(pvaluesNPCTemp)[1:2])
+      }
       
       #naming the list component
       names(pvaluesNPC)[j] <- paste(datasetsNames[combinations[[j]]], collapse = '_');
@@ -169,29 +174,37 @@ omicsNPC_internal <- function(dataMatrices,
   }else{
     
     #initializing
-    statsNPC <- array(dim = c(numMeasurements, numCombMethods, numPerms + 1), dimnames = list(measurements, combMethods, dimnames(pvaluesPerm)[[3]]));
+    statsNPC <- array(dim = c(numMeasurements, numCombMethods, numPerms + 1), 
+                      dimnames = list(measurements, combMethods, dimnames(pvaluesPerm)[[3]]));
     
     #combining the pvalues
     for(i in 1:numCombMethods){
-      statsNPC[ , i, ] <-  apply(pvaluesPerm, 3, combiningPvalues, method = combMethods[i], dataWeights = dataWeights)
+      statsNPC[ , i, ] <-  apply(pvaluesPerm, 3, combiningPvalues, 
+                                 method = combMethods[i], dataWeights = dataWeights)
     }
     
     #computing the NPC p-values
     pvaluesNPC <- statisticsToPvalues(statsNPC);
     pvaluesNPC <- aperm(pvaluesNPC, c(2, 3, 1)) # magic numbers!
     
-    #keeping only the relevant pvalues
-    pvaluesNPC <- matrix(pvaluesNPC[ , , 1], 
-                          nrow = numMeasurements, 
-                          ncol = numCombMethods, 
-                          dimnames = dimnames(pvaluesNPC)[1:2])
+    #keeping only the relevant pvalues, if not specified otherwise
+    if(!returnPermPvalues){
+      pvaluesNPC <- matrix(pvaluesNPC[ , , 1], 
+                            nrow = numMeasurements, 
+                            ncol = numCombMethods, 
+                            dimnames = dimnames(pvaluesNPC)[1:2])
+    }
 
   }
   
   #creating the object to return
   #Note: for the moment is only a list. It will be a proper object in a next release
   #pvaluesNPC: either a matrix (allCombinations = FALSE) or a list (allCombinations = TRUE)
-  toReturn <- list(stats0 = stats0, pvalues0 = pvalues0, pvaluesNPC = pvaluesNPC)
+  if(returnPermPvalues){
+    toReturn <- list(stats0 = stats0, pvalues0 = pvalues0, pvaluesNPC = pvaluesNPC, pvaluesPerm = pvaluesPerm);
+  }else{
+    toReturn <- list(stats0 = stats0, pvalues0 = pvalues0, pvaluesNPC = pvaluesNPC);
+  }
   
   return(toReturn)
 
@@ -329,23 +342,23 @@ generate_iid_data_index <- function(design){
 
 
 # This method applies the functions for computing the association between measurements and outcome
-computeAssociation <- function(dataMatrices, designs, dataMapping, functionsAnalyzingData, ...){
+computeAssociation <- function(dataMatrices, designs, dataMapping, functionsAnalyzingData, outcomeName, ...){
   
   #applying to each data matrix the corresponding function
   results <- vector('list', length(dataMatrices));
   for(j in 1:length(dataMatrices)){
-    results[[j]] <- functionsAnalyzingData[[j]](dataMatrices[[j]], designs[[j]], ...);
+    results[[j]] <- functionsAnalyzingData[[j]](dataMatrices[[j]], designs[[j]], outcomeName, ...);
   }
   
   #Return the results as a matrix: we do now assume the same number of results for each dataset; only a coherent naming
   
   #matrix to return
-  toReturn <- matrix(NA, nrow = dim(dataMapping)[1], ncol = dim(dataMapping)[2]);
+  toReturn <- matrix(NA, nrow = dim(dataMapping)[1], ncol = length(dataMatrices));
   colnames(toReturn) <- names(dataMatrices);
   
   #filling the matrix
   for(j in 1:length(results)){
-    toReturn[ , j] <- results[[j]][ dataMapping[[j]] ];
+    toReturn[ , j] <- results[[j]][ as.character(dataMapping[[j]]) ];
   }
   rownames(toReturn) <- rownames(dataMapping);
   
@@ -430,7 +443,7 @@ computePvaluesVect <- function(statsVect){
   #or by returning the -log(desiredOneTailedPvalue)
   numLargerValues <- numStatistics - rank(statsVect, na.last = "keep", ties.method = "min");
   
-  #we correct for avoid zero p-values
+  #correction for avoiding zero p-values
   pvaluesVect <- (numLargerValues + 1)/(numStatistics + 1);
   
   #returning the p-values
@@ -461,18 +474,29 @@ statisticsToPvalues <- function(stats){
 # function for combining p-values
 combiningPvalues <- function(pvalues, method, dataWeights){
   
+  #if no valid p-values, then return NA
+  
   #depending by the method, a different combination function is applied
   if(method == "Fisher"){
     stats <- apply(pvalues,1,function(x){
                                 idx <- which(!is.na(x));
+                                if(length(idx) == 0){ #in case all p-values are NA
+                                  return(NA);
+                                }
                                 -2*sum( dataWeights[idx] * log(x[idx]) ) })
   }else if(method == "Liptak"){
     stats <- apply(pvalues,1,function(x){
-                                idx <- which(!is.na(x));
+                                idx <- which(!is.na(x));                          
+                                if(length(idx) == 0){ #in case all p-values are NA
+                                  return(NA);
+                                }
                                 sum( dataWeights[idx] * qnorm(1 - x[idx]) ) })
   }else if(method == "Tippett"){
     stats <- apply(pvalues,1,function(x){
                                 idx <- which(!is.na(x));
+                                if(length(idx) == 0){ #in case all p-values are NA
+                                  return(NA);
+                                }
                                 max( dataWeights[idx] * (1 - x[idx]) ) })
   }
   

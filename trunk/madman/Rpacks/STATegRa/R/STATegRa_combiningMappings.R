@@ -132,21 +132,24 @@ combiningMappings <- function(mappings, reference = NULL, retainAll = FALSE){
   }
   
   #removing the reference from the mapping and making it the row names
-  referenceElements <- apply(mapping, 1, function(x){paste(x, collapse = '_')});
+  referenceElements <- mapping[[reference]];
   mapping[[reference]] <- NULL;
-  rownames(mapping) <- referenceElements;
+  mapping[[reference]] <- referenceElements; #this will put the reference as last column
+  newRownames <- apply(mapping, 1, function(x){paste(x, collapse = ':')});
+  toKeep <- !duplicated(newRownames);
+  mapping <- mapping[toKeep, ];
+  newRownames <- newRownames[toKeep];
+  rownames(mapping) <- newRownames;
   
   #naming the columns of mapping
-  colnames(mapping) <- names(mappings);
+  colnames(mapping) <- c(names(mappings), reference);
+  
+  #let's have all columns of mappings as characters
+  for(i in 1:(dim(mapping)[2])){
+    mapping[[i]] <- as.character(mapping[[i]]);
+  }
   
   #return
   return(mapping);
   
 }
-  
-  
-  
-  
-  
-  
-  

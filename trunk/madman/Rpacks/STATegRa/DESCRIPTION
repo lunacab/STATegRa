@@ -1,8 +1,8 @@
 Package: STATegRa
 Type: Package
 Title: Classes and methods for multi-omics data integration
-Version: 1.9.0
-Date: 2016-10-10
+Version: 1.9.1
+Date: 2017-01-05
 Author: STATegra Consortia
 Maintainer: David Gomez-Cabrero <david.gomezcabrero@ki.se>, Patricia
     Sebastián-León <psebastian@cipf.es>, Gordon Ball <gordon.ball@ki.se>

@@ -9,8 +9,9 @@
 omicsNPC(dataInput, dataMapping, dataTypes = rep('continuous', length(dataInput)), 
                combMethods = c("Fisher", "Liptak", "Tippett"), numPerms = 1000, 
                numCores = 1, verbose = FALSE, functionGeneratingIndex = NULL, 
-               outcomeName, allCombinations = FALSE, 
-               dataWeights = rep(1, length(dataInput))/length(dataInput), ...)
+               outcomeName = NULL, allCombinations = FALSE, 
+               dataWeights = rep(1, length(dataInput))/length(dataInput), 
+               returnPermPvalues = FALSE, ...)
 }
 \arguments{
 \item{dataInput}{List of ExpressionSet objects, one for each data modality.}
@@ -35,6 +36,8 @@ omicsNPC(dataInput, dataMapping, dataTypes = rep('continuous', length(dataInput)
 
 \item{dataWeights}{A vector specifying the weigth to give to each dataset. Note that sum(dataWeights) should be 1.}
 
+\item{returnPermPvalues}{Logical, should the p-values computed at each permutation being returned?}
+
 \item{...}{Additional arguments to be passed to the user-defined functions}
 }
 \value{
@@ -42,6 +45,7 @@ A list containing:
 stats0 Partial deregulation / association statistics 
 pvalues0 The partial p-values computed on each dataset
 pvaluesNPC The p-values computed through NPC.
+permPvalues The p-values computed at each permutation
 }
 \description{
 This function applies the NonParametric Combination methodology on the integrative analysis 
@@ -86,6 +90,6 @@ Nestoras Karathanasis, Vincenzo Lagani
 Pesarin, Fortunato, and Luigi Salmaso. Permutation tests for complex data: theory, applications and software.
 John Wiley & Sons, 2010.
 Nestoras Karathanasis, Ioannis Tsamardinos and Vincenzo Lagani. omicsNPC: applying the Non-Parametric Combination 
-methodology to the integrative analysis of heterogeneous omics data. Submitted to PlosONE.
+methodology to the integrative analysis of heterogeneous omics data. PlosONE 11(11): e0165545. doi:10.1371/journal.pone.0165545
 }
 
