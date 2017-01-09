@@ -18,7 +18,7 @@
 #' @title HolistOmics an application of NPC on omics datasets
 #' @aliases holistOmics,list,character-method
 #' @description
-#' This function is now deprecated. Use omicsNPC instead.
+#' This function is defunct. Use omicsNPC instead.
 #'
 #' @usage holistOmics(dataInput, dataTypes, comb.method = c("Fisher", "Liptak", "Tippett"),
 #'                numPerm = 1000, numCores = 1, verbose = FALSE)
@@ -75,31 +75,7 @@ setMethod(
         dataTypes = "character"),
     definition=function(dataInput, dataTypes, comb.method, numPerm, numCores, verbose){
       
-        #This function is deprecated.
-        .Deprecated("omicsNPC");
-      
-        # Input check # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-        # class names
-        classNames <- sapply(dataInput, class)
-        testClass <- sapply(X = classNames, FUN = match.arg, choices = c('ExpressionSet'))
-
-        # data types
-        testDataTypes <- sapply(X = dataTypes, FUN = match.arg, choices = c('RNAseq', 'Microarray'))
-        
-        #changing the data type input
-        dataTypes[dataTypes == 'Microarray'] = 'continuous';
-        dataTypes[dataTypes == 'RNAseq'] = 'count';
-
-        #Calling omicsNPC
-        output <- omicsNPC(dataInput = dataInput, 
-                           dataTypes = dataTypes,
-                           combMethods = comb.method,
-                           numPerms = numPerm, 
-                           numCores = numCores, 
-                           verbose = verbose);
-
-        #returning the results
-        return(output)
-
+        #This function is defunct.
+        .Defunct("omicsNPC");
     }
 )
