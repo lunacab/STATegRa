@@ -56,12 +56,12 @@ NULL
 #' data(TCGA_BRCA_Batch_93)
 NULL
 
-#' @name STATegRa-deprecated
-#' @title Deprecated functions in STATegRa
+#' @name STATegRa-defunct
+#' @title Defunct functions in STATegRa
 #' @description
-#' These functions have been deprecated in STATegRa
+#' These functions have are defunct and no longer available
 #' @details
 #' \itemize{
-#' \item{holistOmics: \code{\link{omicsNPC}}}
+#' \item{holistOmics: replaced by \code{\link{omicsNPC}}}
 #' }
 NULL

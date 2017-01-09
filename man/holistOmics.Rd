@@ -26,7 +26,7 @@ holistOmics(dataInput, dataTypes, comb.method = c("Fisher", "Liptak", "Tippett")
 A data.frame
 }
 \description{
-This function is now deprecated. Use omicsNPC instead.
+This function is defunct. Use omicsNPC instead.
 }
 \examples{
 # Load the data
