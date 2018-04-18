@@ -476,7 +476,7 @@ setMethod(
             stop("x is not a caclass object")
         } else {
             if (is.null(part)) {
-                
+              res <- x@loadings
             } else {
                 part <- match.arg(part, choices=c("common", "distinctive"))
                 if (part == "common"){
