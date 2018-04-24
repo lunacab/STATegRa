@@ -11,4 +11,3 @@ These functions have are defunct and no longer available
 \item{holistOmics: replaced by \code{\link{omicsNPC}}}
 }
 }
-

@@ -36,10 +36,9 @@ getMethodInfo(res)
 getMethodInfo(res, method=TRUE)
 getMethodInfo(res, comps="all", block="expr")
 }
-\author{
-Patricia Sebastian-Leon
-}
 \seealso{
 \code{\link{omicsCompAnalysis}}, \code{\link{caClass-class}}
 }
-
+\author{
+Patricia Sebastian-Leon
+}

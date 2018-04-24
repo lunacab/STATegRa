@@ -56,4 +56,3 @@ o2plsRes <- omicsCompAnalysis(Input=list(B1,B2),Names=c("expr","mirna"),
 \author{
 Patricia Sebastian Leon
 }
-

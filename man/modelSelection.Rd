@@ -5,42 +5,57 @@
 \alias{modelSelection,list,numeric,character-method}
 \title{Find optimal common and distinctive components}
 \usage{
-modelSelection(Input, Rmax, fac.sel, varthreshold=NULL, nvar=NULL, PCnum=NULL)
+modelSelection(Input,Rmax,fac.sel,varthreshold=NULL,nvar=NULL,PCnum=NULL,center=FALSE,scale=FALSE,weight=FALSE, plot_common=FALSE, plot_dist=FALSE)
 }
 \arguments{
-\item{Input}{List of two ExpressionSet objects}
+\item{Input}{List of \code{ExpressionSet} objects, one for each block of data}
 
-\item{Rmax}{Maximum common components (see \code{\link{selectCommonComps}})}
+\item{Rmax}{Maximum common components}
 
-\item{fac.sel}{PCA criteria (see \code{\link{PCA.selection}})}
+\item{fac.sel}{PCA criteria for selection ("\%accum", "single\%", "rel.abs", "fixed.num")}
 
-\item{varthreshold}{Cumulative variance criteria (see \code{\link{PCA.selection}})}
+\item{varthreshold}{Cumulative variance criteria for PCA selection. Threshold for "\%accum" or "single\%" criteria.}
 
-\item{nvar}{Relative variance criteria (see \code{\link{PCA.selection}})}
+\item{nvar}{Relative variance criteria. Threshold for "rel.abs".}
 
-\item{PCnum}{Fixed component number (see \code{\link{PCA.selection}})}
+\item{PCnum}{Fixed number of components for "fixed.num".}
+
+\item{center}{Character (or FALSE) specifying which (if any) centering will be applied before analysis. Choices are "PERBLOCKS" (each block separately) or "ALLBLOCKS" (all data together).}
+
+\item{scale}{Character (or FALSE) specifying which (if any) scaling will be applied before analysis. Choices are "PERBLOCKS" (each block separately) or "ALLBLOCKS" (all data together).}
+
+\item{weight}{Logical indicating whether weighting is to be done. Choices are "BETWEEN-BLOCKS"}
+
+\item{plot_common}{Logical indicating whether to plot the explained variances (SSQ) of each block and its estimation and the ratios}
+
+\item{plot_dist}{Logical indicating whether to plot the explained variances (SSQ) and the accumulated variance for each block}
 }
 \value{
 List containing:
 \describe{
-     \item{common}{Number of common components}
-     \item{dist}{Number of distinct components per input block}
+     \item{common}{List with common components results}
+     \item{commonComps}{Optimal number of common components}
+     \item{ssqs}{Matrix of SSQ for each block and estimator}
+     \item{pssq}{\code{\link{ggplot}} object showing SSQ for each block and estimator}
+     \item{pratios}{\code{\link{ggplot}} object showing SSQ ratios between each block and estimator}
+     \item{dist}{List containg the results of distinct PCA for each input block; for each block PCAres and numComps is returned within a list}
+     \item{PCAres}{List containing results of PCA, with fields "eigen", "var.exp", "scores" and "loadings"}
+     \item{nomComps}{Number of components selected}
 }
 }
 \description{
-Uses \code{\link{selectCommonComps}} and \code{\link{PCA.selection}} to estimate the optimal number of common and distinctive components according to given selection criteria.
+Estimate the optimal number of common and distinctive components according to given selection criteria.
 }
 \examples{
 data(STATegRa_S3)
 B1 <- createOmicsExpressionSet(Data=Block1.PCA,pData=ed.PCA,pDataDescr=c("classname"))
 B2 <- createOmicsExpressionSet(Data=Block2.PCA,pData=ed.PCA,pDataDescr=c("classname"))
-ms <- modelSelection(Input=list(B1, B2), Rmax=4, fac.sel="single\\\%", varthreshold=0.03)
+ms <- modelSelection(Input=list(B1, B2), Rmax=3, fac.sel="single\\\%", varthreshold=0.03, center=TRUE, scale=FALSE, weight=TRUE, plot_common=FALSE, plot_dist=FALSE)
 ms
+}
+\seealso{
+\code{\link{omicsCompAnalysis}}
 }
 \author{
 Patricia Sebastian-Leon
 }
-\seealso{
-\code{\link{selectCommonComps}},\code{\link{PCA.selection}},\code{\link{omicsCompAnalysis}}
-}
-

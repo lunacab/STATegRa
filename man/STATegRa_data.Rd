@@ -2,14 +2,14 @@
 % Please edit documentation in R/STATegRa_package.R
 \docType{data}
 \name{STATegRa_data}
-\alias{Block1}
-\alias{Block1.PCA}
-\alias{Block2}
-\alias{Block2.PCA}
 \alias{STATegRa_data}
+\alias{Block1}
+\alias{Block2}
 \alias{ed}
-\alias{ed.PCA}
 \alias{mapdata}
+\alias{Block1.PCA}
+\alias{Block2.PCA}
+\alias{ed.PCA}
 \title{STATegRa data}
 \format{Two matrices with mRNA and miRNA expression data, a design matrix that describes both and a mapping between miRNA and genes.}
 \source{
@@ -29,4 +29,3 @@ data(STATegRa_S3)
 \author{
 David Gomez-Cabrero, Patricia Sebastian-Leon, Gordon Ball
 }
-

@@ -83,13 +83,12 @@ verbose = TRUE
                             combMethods = combMethods, numPerms = numPerms,
                             numCores = numCores, verbose = verbose)}
 }
-\author{
-Nestoras Karathanasis, Vincenzo Lagani
-}
 \references{
 Pesarin, Fortunato, and Luigi Salmaso. Permutation tests for complex data: theory, applications and software.
 John Wiley & Sons, 2010.
 Nestoras Karathanasis, Ioannis Tsamardinos and Vincenzo Lagani. omicsNPC: applying the Non-Parametric Combination 
 methodology to the integrative analysis of heterogeneous omics data. PlosONE 11(11): e0165545. doi:10.1371/journal.pone.0165545
 }
-
+\author{
+Nestoras Karathanasis, Vincenzo Lagani
+}

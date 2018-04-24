@@ -24,4 +24,3 @@ data(TCGA_BRCA_Batch_93)
 \author{
 Nestoras Karathanasis, Vincenzo Lagani
 }
-

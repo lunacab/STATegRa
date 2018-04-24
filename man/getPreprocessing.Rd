@@ -39,10 +39,9 @@ res <- omicsCompAnalysis(Input=list(B1, B2), Names=c("expr", "mirna"),
 getPreprocessing(res, process=TRUE)
 getPreprocessing(res, preproData=TRUE, block="1")
 }
-\author{
-Patricia Sebastian-Leon
-}
 \seealso{
 \code{\link{omicsCompAnalysis}}, \code{\link{caClass-class}}
 }
-
+\author{
+Patricia Sebastian-Leon
+}

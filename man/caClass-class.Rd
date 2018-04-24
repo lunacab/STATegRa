@@ -32,7 +32,7 @@ Stores the results of any of the omicsPCA analyses.
 
 \item{\code{others}}{List containing other miscellaneous information specific to different SCA methods}
 }}
+
 \author{
 Patricia Sebastian Leon
 }
-

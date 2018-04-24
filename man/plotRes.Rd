@@ -2,20 +2,20 @@
 % Please edit documentation in R/STATegRa_omicsPCA_plotting.R
 \name{plotRes}
 \alias{plotRes}
-\alias{plotRes,caClass,numeric,character,character,logical,character-method}
+\alias{plotRes,caClass,numeric,character,character,logical}
 \title{Plot component analysis results}
 \usage{
-plotRes(object, comps=c(1, 2), what, type, combined, block, 
-               color=NULL, shape=NULL, labels=NULL, background=TRUE, 
+plotRes(object, comps=c(1, 2), what, type, combined, block=NULL, 
+               color=NULL, shape=NULL, labels=NULL, title=NULL, xlabel=NULL, ylabel=NULL, background=TRUE, 
                palette=NULL, pointSize=4, labelSize=NULL, 
-               axisSize=NULL, titleSize=NULL)
+               axisSize=NULL, titleSize=NULL, sizeValues = c(2,4), shapeValues = c(17, 0))
 }
 \arguments{
-\item{object}{\code{caClass} object containing component analysis results}
+\item{object}{\code{\link{caClass-class}} containing component analysis results}
 
 \item{comps}{If combined=FALSE, it indicates the x and y components of the type and block chosen. If \code{combined=TRUE}, it indicates the component to plot for the first block of information and the component for the second block of information to plot together. By default the components are set to c(1,2) if \code{combined=FALSE} and to c(1,1) if \code{combined=TRUE}.}
 
-\item{what}{Either "scores" or "loadings"}
+\item{what}{Either "scores", "loadings" or "both"}
 
 \item{type}{Either "common", "individual" or "both"}
 
@@ -29,6 +29,12 @@ plotRes(object, comps=c(1, 2), what, type, combined, block,
 
 \item{labels}{Character specifying a pData column from which to take point labels}
 
+\item{title}{Main title}
+
+\item{xlabel}{x-axis name}
+
+\item{ylabel}{y-axis name}
+
 \item{background}{Logical specifying whether to make a grey background}
 
 \item{palette}{Vector giving the color palette for the plot}
@@ -40,6 +46,10 @@ plotRes(object, comps=c(1, 2), what, type, combined, block,
 \item{axisSize}{Size of axis text}
 
 \item{titleSize}{Size of title text}
+
+\item{sizeValues}{Vector containing sizes for scores and loadings}
+
+\item{shapeValues}{Vector indicating the shapes for scores and loadings}
 }
 \value{
 \code{ggplot} object
@@ -69,12 +79,12 @@ o2plsRes <- omicsCompAnalysis(Input=list(B1,B2),Names=c("expr","mirna"),
 
 # DISCO-SCA
 plotRes(object=discoRes,comps=c(1,2),what="scores",type="common",
-        combined=FALSE,block="",color="classname",shape=NULL,labels=NULL,
+        combined=FALSE,block=NULL,color="classname",shape=NULL,labels=NULL,
         background=TRUE,palette=NULL,pointSize=4,labelSize=NULL,
         axisSize=NULL,titleSize=NULL)
 # JIVE
 plotRes(object=jiveRes,comps=c(1,2),what="scores",type="common",
-       combined=FALSE,block="",color="classname",shape=NULL,labels=NULL,
+       combined=FALSE,block=NULL,color="classname",shape=NULL,labels=NULL,
         background=TRUE,palette=NULL,pointSize=4,labelSize=NULL,
         axisSize=NULL,titleSize=NULL)
 
@@ -93,7 +103,7 @@ p2 <- plotRes(object=o2plsRes,comps=c(1,2),what="scores",type="common",
 
 # Combined plot of scores variables assocaited to common components
 plotRes(object=o2plsRes,comps=c(1,1),what="scores",type="common",
-        combined=TRUE,block="",color="classname",shape=NULL,
+        combined=TRUE,block=NULL,color="classname",shape=NULL,
         labels=NULL,background=TRUE,palette=NULL,pointSize=4,
         labelSize=NULL,axisSize=NULL,titleSize=NULL)
 
@@ -108,13 +118,12 @@ p2 <- plotRes(object=discoRes,comps=c(1,2),what="loadings",type="individual",
               labels=NULL,background=TRUE,palette=NULL,pointSize=4,
               labelSize=NULL,axisSize=NULL,titleSize=NULL)
 
-# Combined plot
-plotRes(object=discoRes,comps=c(1,1),what="loadings",type="individual",
-        combined=TRUE,block="",color="classname",shape=NULL,
+# Biplot: scores + loadings
+plotRes(object=discoRes,comps=c(1,2),what="both",type="common",
+        combined=FALSE,block="expr",color="classname",shape=NULL,
         labels=NULL,background=TRUE,palette=NULL,pointSize=4,
         labelSize=NULL,axisSize=NULL,titleSize=NULL)
 }
 \author{
 Patricia Sebastian-Leon
 }
-

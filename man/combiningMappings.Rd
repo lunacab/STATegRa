@@ -46,11 +46,10 @@ mappings <- list(mRNA = mRNA, methylation = methylation, miRNA = miRNA);
 combiningMappings(mappings = mappings, retainAll = TRUE)
 
 }
-\author{
-Vincenzo Lagani
-}
 \references{
 Nestoras Karathanasis, Ioannis Tsamardinos and Vincenzo Lagani. omicsNPC: applying the Non-Parametric Combination 
 methodology to the integrative analysis of heterogeneous omics data. Submitted to PlosONE.
 }
-
+\author{
+Vincenzo Lagani
+}

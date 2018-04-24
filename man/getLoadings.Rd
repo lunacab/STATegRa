@@ -34,10 +34,9 @@ getLoadings(res)
 getLoadings(res, part="common", block="expr")
 getLoadings(res, part="distinctive", block="expr")
 }
-\author{
-Patricia Sebastian-Leon
-}
 \seealso{
 \code{\link{omicsCompAnalysis}}, \code{\link{caClass-class}}
 }
-
+\author{
+Patricia Sebastian-Leon
+}

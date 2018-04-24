@@ -42,4 +42,3 @@ plotVAF(jiveRes)
 \author{
 Patricia Sebastian-Leon
 }
-

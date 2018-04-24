@@ -31,10 +31,9 @@ res <- omicsCompAnalysis(Input=list(B1, B2), Names=c("expr", "mirna"),
 getInitialData(res)
 getInitialData(res, block="expr")
 }
-\author{
-Patricia Sebastian-Leon
-}
 \seealso{
 \code{\link{omicsCompAnalysis}}, \code{\link{caClass-class}}
 }
-
+\author{
+Patricia Sebastian-Leon
+}

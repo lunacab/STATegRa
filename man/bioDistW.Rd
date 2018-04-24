@@ -92,4 +92,3 @@ bioDistFeaturePlot(data=fm)
 \author{
 David Gomez-Cabrero
 }
-

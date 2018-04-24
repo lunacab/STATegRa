@@ -39,4 +39,3 @@ B2 <- createOmicsExpressionSet(Data=Block2.PCA,pData=ed.PCA,
 Patricia Sebastian-Leon
 }
 \keyword{datagen}
-

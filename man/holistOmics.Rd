@@ -50,11 +50,10 @@ verbose = TRUE
                             comb.method = comb.method, numPerm = numPerm,
                             numCores = numCores, verbose = verbose)}
 }
-\author{
-Nestoras Karathanasis
-}
 \references{
 Pesarin, Fortunato, and Luigi Salmaso. Permutation tests for complex data: theory, applications and software.
 John Wiley & Sons, 2010.
 }
-
+\author{
+Nestoras Karathanasis
+}

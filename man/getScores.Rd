@@ -34,10 +34,9 @@ getScores(res)
 getScores(res, part="common")
 getScores(res, part="distinctive", block="expr")
 }
-\author{
-Patricia Sebastian-Leon
-}
 \seealso{
 \code{\link{omicsCompAnalysis}}, \code{\link{caClass-class}}
 }
-
+\author{
+Patricia Sebastian-Leon
+}

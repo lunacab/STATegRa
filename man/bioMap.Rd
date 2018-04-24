@@ -30,4 +30,3 @@ map.gene.miRNA<-bioMap(name = "Symbol-miRNA",
 \author{
 David Gomez-Cabrero
 }
-

@@ -20,4 +20,3 @@ bioDistclass(name, distance, map.name, map.metadata, params)
 \description{
 Class to manage mappings between genomic features.
 }
-

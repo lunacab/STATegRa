@@ -21,4 +21,3 @@ STATegRaUsersGuide(view=FALSE)
 \author{
 David Gomez-Cabrero
 }
-
