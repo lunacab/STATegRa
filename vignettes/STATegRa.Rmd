@@ -1,7 +1,7 @@
 ---
 title: STATegRa User's Guide
 author: The STATegra Consortium
-date: "2014-10-01"
+date: "2018-04-04"
 bibliography: bibliography.bib
 output:
     BiocStyle::html_document:
@@ -32,7 +32,7 @@ Recent developments in high-throughput technologies for studying biological syst
 
 The first step in this kind of integration analysis is to identify patterns in data shared by all the omics classes, and use these patterns to identify outliers. The most common techniques for this sort of analysis are clustering and principal components analysis.
 
-The `STATegRa` package provides several different techniques for the evaluation of reproducibility among samples and across experimental conditions by combining the information contained multiple omics datasets. This is intended as a starting point for further integration analysis of any multi-omics dataset.
+The `STATegRa` package provides several different techniques for the evaluation of reproducibility among samples and across experimental conditions by combining the information contained in multiple omics datasets. This is intended as a starting point for further integration analysis of any multi-omics dataset.
 
 The `STATegRa` package implements two main utilities for this purpose: component analysis and clustering. 
 
@@ -115,7 +115,7 @@ data("STATegRa_S3")
 ls()
 ```
 
-The loaded data consists of two matrices (`Block1.PCA`, `Block2.PCA`) corresponding to gene and microRNA expression data respectively. Also, another matrix (`ed.PCA`) indicating the experimental design of the data is provided. This experimental design matrix is a one-column matrix indicating which subtype of tumour corresponds to each sample. For the main analysis, the input consists of a list of expression sets. These matrices could be easily converted in ExpressionSets by using `createOmicsExpressionSet()` function as follows:
+The loaded data consists of two matrices (`Block1.PCA`, `Block2.PCA`) corresponding to gene and microRNA expression data respectively. Also, another matrix (`ed.PCA`) indicating the experimental design of the data is provided. This experimental design matrix is a one-column matrix indicating which subtype of tumour corresponds to each sample. For the main analysis, the input consists of a list of expression sets. These matrices could be easily converted in `ExpressionSet` objects by using `createOmicsExpressionSet()` function as follows:
 
 ```{r}
 # Block1 - gene expression data
@@ -131,39 +131,27 @@ B2 <- createOmicsExpressionSet(Data=Block2.PCA, pData=ed.PCA,
 
 To perform component analysis, it is required to find the number of common and distinctive components that the dataset is expected to contain. This step is optional; if you know how many common and distinctive components are expected, this can be used as input to the next step.
 
-Model selection is done by using the `modelSelection()` function. This function first calculates the optimal number of common components using the `selectCommonComps()` function. Then, the optimal number of individual components is found by subtracting the optimal number of individual components and the optimal number of common components calculated before. This individual components selection could be done by a cross-validation of the individual PCA results^[This option is not avaliable yet, but can be done using other R packages such as `r Biocpkg("pcaMethods")` or `r CRANpkg("missMDA")`], or by some other criteria.
+Model selection is done by using the `modelSelection()` function. This function first calculates the optimal number of common components. Then, the optimal number of individual components is found by subtracting the optimal number of individual components and the optimal number of common components calculated before. This individual components selection could be done by a cross-validation of the individual PCA results^[This option is not avaliable yet, but can be done using other R packages such as `r Biocpkg("pcaMethods")` or `r CRANpkg("missMDA")`], or by some other criteria.
 
-For common components estimation, the `selectCommonComps()` function applies a Simultaneous Component Analysis (SCA). The idea is that the scores for both blocks should have a similar behavior if the components are in a common mode. That is, the estimation of the original data by using $\hat{X}=T_XP'_X$ and $\hat{X}_Y=T_YP'_X$ should give similar results. If not, the scores were calculated using uncommon factors and are not common components. To evaluate if a component is common or not, the ratios between the explained variances (SSQ) of each block and its estimation ($SSQ_X/SSQ_{X_Y}$ and $SSQ_Y/SSQ_{Y_X}$) are used. The highest component having its ratios between $0.8$ and $1.5$ is selected as the optimal number of common components. 
+For common components estimation, the Simultaneous Component Analysis (SCA) is applied. The idea is that the scores for both blocks should have a similar behavior if the components are in a common mode. That is, the estimation of the original data by using $\hat{X}=T_XP'_X$ and $\hat{X}_Y=T_YP'_X$ should give similar results. If not, the scores were calculated using uncommon factors and are not common components. To evaluate if a component is common or not, the ratios between the explained variances (SSQ) of each block and its estimation ($SSQ_X/SSQ_{X_Y}$ and $SSQ_Y/SSQ_{Y_X}$) are used. The highest component having its ratios between $0.8$ and $1.5$ is selected as the optimal number of common components. The SSQ can be shown as plots. 
 
-```{r}
-cc <- selectCommonComps(X=Block1.PCA, Y=Block2.PCA, Rmax=3)
-cc$common
-grid.arrange(cc$pssq, cc$pratios, ncol=2)
-```
+For distinctive components, function allows the user to select the optimal number of distinctive components depending on the percentage of accumulated variance explained, the individual explained variance of each component, the absolute value of its variability or just a fixed number of components. 
 
-The `PCA.selection()` function allows the user to select the optimal number of components depending on the percentage of accumulated variance explained, the individual explained variance of each component, the absolute value of its variability or just a fixed number of components. 
+Preprocessing of data can be done using this function, and should be specified by using the parameters `center`, `scale` and `weight`. If these parameters are not provided, preprocessing is not applied by default. Centering and scaling is applied independently to each block of data, while weight is applied to both blocks together. Weighting between blocks should be applied when the size of datasets is different.
 
 ```{r}
-# Block 1 
-PCA.selection(Data=Block1.PCA, fac.sel="single%",
-              varthreshold=0.03)$numComps
+ms <- modelSelection(Input=list(B1, B2), Rmax=3, fac.sel="single%",
+                     varthreshold=0.03, center=TRUE, scale=TRUE, 
+                     weight=TRUE, plot_common=FALSE, plot_dist=FALSE)
 
-# Block2
-PCA.selection(Data=Block2.PCA, fac.sel="single%",
-              varthreshold=0.03)$numComps
+grid.arrange(ms$common$pssq, ms$common$pratios, ncol=2) #switching plot_common=TRUE gives automaticaly these plots
 ```
 
-Both functions could be applied together using `modelSelection()`. This function automatically calculates the optimal number of common and individual components depending on the maximal number of common components and the individual components selection criteria provided by the user. The result is a list with the optimal number of common and distinctive components. 
-
-```{r}
-ms <- modelSelection(Input=list(B1,B2), Rmax=4, fac.sel="single%",
-                     varthreshold=0.03)
-ms
-```
+This function automatically calculates the optimal number of common (allowing the visualization of SSQs) and individual components depending on the maximal number of common components and the individual components selection criteria provided by the user. The result is a list with the common and distinctive component analysis. 
 
 ### Component Analysis
 
-Component Analysis is done using `omicsCompAnalysis()` function, where the method (DISCO, JIVE or O2PLS) to be applied is indicated via the `method` parameter. Preprocessing of data can be done using this function, and should be specified by using the parameters `center`, `scale` and `weight`. If these parameters are not provided, preprocessing is not applied by default. Centering and scaling is applied independently to each block of data, while weight is applied to both blocks together. Weighting between blocks should be applied when the size of datasets is different. To use this function you have to specify the number of common and distinctive components (see [Model Selection](#model-selection)). Finally, the `convThres` and `maxIter` parameters are stop criteria for the DISCO-SCA and JIVE approaches. 
+Component Analysis is done using `omicsCompAnalysis()` function, where the method (DISCO, JIVE or O2PLS) to be applied is indicated via the `method` parameter. Preprocessing of data can be done using this function, and should be specified by using the parameters `center`, `scale` and `weight`, in the same way as `modelSelection()` function. If these parameters are not provided, preprocessing is not applied by default. Centering and scaling is applied independently to each block of data, while weight is applied to both blocks together. Weighting between blocks should be applied when the size of datasets is different. To use this function you have to specify the number of common and distinctive components (see [Model Selection](#model-selection)). Finally, the `convThres` and `maxIter` parameters are stop criteria for the DISCO-SCA and JIVE approaches. 
 
 ```{r}
 discoRes <- omicsCompAnalysis(Input=list(B1, B2), Names=c("expr", "mirna"),
@@ -183,9 +171,9 @@ The results obtained are in a `caClass` object.
 slotNames(discoRes)
 ```
 
-Most of the slots in this class provide information about the input parameters/data of the function. The `InitialData` slot stores the input list of `ExpressionSet` objects and `names` the specified names of the omics data sets. The `preprocessing` slot is a vector indicating the preprocessing applied to the data and `preproData` contains the so-processed data. The `caMethod` slot is a character indicating which components analysis method was applied to the data. The slots named `commonComps` and `distComps` indicate the number of common and distinctive components provided. Finally, the slots associated with the results of the analysis are `scores`, `loadings` and `VAF`. Finally, the `others` slot stores extra information specific to each different method.
+Most of the slots in this class provide information about the input parameters/data of the function. The `InitialData` slot stores the input list of `ExpressionSet` objects and `Names` the specified names of the omics data sets. The `preprocessing` slot is a vector indicating the preprocessing applied to the data and `preproData` contains the so-processed data. The `caMethod` slot is a character indicating which components analysis method was applied to the data. The slots named `commonComps` and `distComps` indicate the number of common and distinctive components provided. Finally, the slots associated with the results of the analysis are `scores`, `loadings` and `VAF`. Finally, the `others` slot stores extra information specific to each different method.
 
-This slots are accessible via accessor functions. All these functions allow the user to choose which part of the information in the slot is to be retrieved (e.g. the block of data whose information is retrieved can be specified in almost all accession functions). To access the initial data the `getInitialData()` and `getMethodInfo()` functions should be used. The first of these retrieves the initial data used for the component analysis and second one retrieves the method employed for the analysis as well as the number of common and distinctive components. The `getPreprocessing()` function allows the access to preprocessing information and preprocessed data. The results of the analysis can be displayed by using `getScores()`, `getLoadings()` and `getVAF()` functions. These functions allow the user to choose between common or individual results, as well as the block of data whose results are to be displayed.
+These slots are accessible via accessor functions. All these functions allow the user to choose which part of the information in the slot is to be retrieved (e.g. the block of data whose information is retrieved can be specified in almost all accession functions). To access the initial data the `getInitialData()` and `getMethodInfo()` functions should be used. The first of these retrieves the initial data used for the component analysis and second one retrieves the method employed for the analysis as well as the number of common and distinctive components. The `getPreprocessing()` function allows the access to preprocessing information and preprocessed data. The results of the analysis can be displayed by using `getScores()`, `getLoadings()` and `getVAF()` functions. These functions allow the user to choose between common or individual results, as well as the block of data whose results are to be displayed.
 
 The structure of scores and loadings data from DISCO-SCA and JIVE analyses are the same. Scores associated to common components are represented in a matrix with samples in the rows and as many columns as common components are selected. For O2PLS, these scores are instead divided into two matrices with the same structure, one associated to the contribution of the common components to one block and one associated to the other block. Scores associated to distinctive components are also represented by two matrices, one associated to each block, where rows represent samples and the number of columns depends of the number of distinctive components associated to each block. The loadings structure is the same for all methods. Two loadings matrices for the common part and two for the distinctive part, one associated to each block, are also provided. 
 
@@ -218,22 +206,22 @@ plotVAF(jiveRes)
 
 ### Plot results
 
-Plotting the results obtained from `omicsCompAnalysis()` can be done by using two different functions. `plotRes()` allows plotting of scores or loadings, for common and distinctive parts, as well as combined plots of both parts together. In addition, the `biplotRes()` functions allows the plotting of scores and loadings together for common and distinctive parts. 
+Plotting the results obtained from `omicsCompAnalysis()` can be done by using `plotRes()` function. `plotRes()` allows plotting of scores, loadings or both, for common and distinctive parts, as well as combined plots of both parts together.
 
 The most important parameters for `plotRes()` are:
 
 `object`
  ~  `caClass` object, usually a result from `omicsCompAnalysis()` function.
-`comps`
- ~  Components to plot. If `combined=FALSE`, it indicates the x and y components of the `type` and `block` chosen. If `combined=TRUE`, it indicates the component to plot for the first block of information and the component for the second block of information to plot together. By default the components are set to `c(1,2)` if `combined=FALSE` and to `c(1,1)` if `combined=TRUE`.
-`what=c("scores", "loadings")`
- ~  Are scores or loadings had to be represented?
-`type=c("common", "individual", "both")`
- ~  Are common or individual components had to be represented? In the case of combined plots (`combined=TRUE`) this indicates whether combined components are all from common or individual part or are from each of them. 
-`combined`
- ~  Logical indicating if the plot is a simple plot representing two components from the same block of information, or a combined representation. The effect of the variable depends also on the values given for `comps`, `block` and `type`.
-`block`
- ~  Indicates which block has to be represented. It can be specified by a numeric value (1 or 2) or a character (name of the block in the input data provided to the `omicsCompAnalysis()` analysis)
+
+ ~  `comps`, components to plot. If `combined=FALSE`, it indicates the x and y components of the `type` and `block` chosen. If `combined=TRUE`, it indicates the component to plot for the first block of information and the component for the second block of information to plot together. By default the components are set to `c(1,2)` if `combined=FALSE` and to `c(1,1)` if `combined=TRUE`.
+
+ ~  `what=c("scores", "loadings","both")`, Are scores, loadings or both had to be represented?
+
+ ~  `type=c("common", "individual", "both")`. Are common or individual components had to be represented? If both a common and individual componanent are represented. 
+
+ ~  `combined`. Logical indicating if the plot is a simple plot representing two components from the same block of information, or a combined representation. The effect of the variable depends also on the values given for `comps`, `block` and `type`.
+
+ ~  `block` indicates which block has to be represented. It can be specified by a numeric value (1 or 2) or a character (name of the block in the input data provided to the `omicsCompAnalysis()` analysis)
 
 The DISCO-SCA and JIVE approaches calculate the common components in the joined matrix, so samples can be represented using a scatterplot of the score variables associated to the common components.
 
@@ -242,13 +230,13 @@ The DISCO-SCA and JIVE approaches calculate the common components in the joined 
 
 # DISCO-SCA
 plotRes(object=discoRes, comps=c(1, 2), what="scores", type="common",
-        combined=FALSE, block="", color="classname", shape=NULL, labels=NULL,
+        combined=FALSE, block=NULL, color="classname", shape=NULL, labels=NULL,
         background=TRUE, palette=NULL, pointSize=4, labelSize=NULL,
         axisSize=NULL, titleSize=NULL) 
 
 # JIVE
 plotRes(object=jiveRes, comps=c(1, 2), what="scores", type="common",
-        combined=FALSE, block="", color="classname", shape=NULL, labels=NULL,
+        combined=FALSE, block=NULL, color="classname", shape=NULL, labels=NULL,
         background=TRUE, palette=NULL, pointSize=4, labelSize=NULL,
         axisSize=NULL, titleSize=NULL) 
 ```
@@ -279,12 +267,12 @@ grid.arrange(arrangeGrob(p1+theme(legend.position="none"),
 
 # Combined plot of scores variables assocaited to common components
 plotRes(object=o2plsRes, comps=c(1, 1), what="scores", type="common",
-        combined=TRUE, block="", color="classname", shape=NULL,
+        combined=TRUE, block=NULL, color="classname", shape=NULL,
         labels=NULL, background=TRUE, palette=NULL, pointSize=4,
         labelSize=NULL, axisSize=NULL, titleSize=NULL) 
 ```
 
-The scores plot associated to individual components can be plotted using an scatterplot for each block of data in the same way that common components scores are for the O2PLS approach. A combined plot representing the a components of each block of data together can be plotted too. 
+The scores plot associated to individual components can be plotted using an scatterplot for each block of data in the same way that common components scores are for the O2PLS approach. A combined plot representing the components of each block of data together can be plotted, too. 
  
 ```{r}
 # DISCO-SCA scores scatterplot associated to individual components
@@ -307,7 +295,7 @@ grid.arrange(arrangeGrob(p1+theme(legend.position="none"),
 
 # DISCO-SCA scores combined plot for individual components
 plotRes(object=discoRes, comps=c(1, 1), what="scores", type="individual",
-        combined=TRUE, block="", color="classname", shape=NULL,
+        combined=TRUE, block=NULL, color="classname", shape=NULL,
         labels=NULL, background=TRUE, palette=NULL, pointSize=4,
         labelSize=NULL, axisSize=NULL, titleSize=NULL)
 ```
@@ -315,13 +303,13 @@ plotRes(object=discoRes, comps=c(1, 1), what="scores", type="individual",
 Combined plots of scores for common and individual components together can be plotted with the results of all methods. In the case of the DISCO-SCA and JIVE approaches the components associated to the common part is the same in both plots but in the case of the O2PLS approach the common component represented is the one associated to each block of data.
 
 ```{r}
-# DISCO-SCA combined plot of scores for common and individual components
+# DISCO-SCA plot of scores for common and individual components
 p1 <- plotRes(object=discoRes, comps=c(1, 1), what="scores", type="both",
-              combined=TRUE, block="expr", color="classname", shape=NULL,
+              combined=FALSE, block="expr", color="classname", shape=NULL,
               labels=NULL, background=TRUE, palette=NULL, pointSize=4,
               labelSize=NULL, axisSize=NULL, titleSize=NULL)
 p2 <- plotRes(object=discoRes, comps=c(1, 1), what="scores", type="both",
-              combined=TRUE, block="mirna", color="classname", shape=NULL,
+              combined=FALSE, block="mirna", color="classname", shape=NULL,
               labels=NULL, background=TRUE, palette=NULL, pointSize=4,
               labelSize=NULL, axisSize=NULL, titleSize=NULL)
 legend <- g_legend(p1)
@@ -329,13 +317,13 @@ grid.arrange(arrangeGrob(p1+theme(legend.position="none"),
                          p2+theme(legend.position="none"), nrow=1),
              legend, heights=c(6/7, 1/7))
 
-# O2PLS combined plot of scores for common and individual components
+# O2PLS plot of scores for common and individual components
 p1 <- plotRes(object=o2plsRes, comps=c(1, 1), what="scores", type="both",
-              combined=TRUE, block="expr", color="classname", shape=NULL,
+              combined=FALSE, block="expr", color="classname", shape=NULL,
               labels=NULL, background=TRUE, palette=NULL, pointSize=4,
               labelSize=NULL, axisSize=NULL, titleSize=NULL)
 p2 <- plotRes(object=o2plsRes, comps=c(1, 1), what="scores", type="both",
-              combined=TRUE, block="mirna", color="classname", shape=NULL,
+              combined=FALSE, block="mirna", color="classname", shape=NULL,
               labels=NULL, background=TRUE, palette=NULL, pointSize=4,
               labelSize=NULL, axisSize=NULL, titleSize=NULL)
 legend <- g_legend(p1)
@@ -346,7 +334,7 @@ grid.arrange(arrangeGrob(p1+theme(legend.position="none"),
 
 For the loadings representation, the plots provided by `plotRes()` function are the same than scores representation. In the case of loadings the plots associated to all methods are the same, so only plots associated to DISCO-SCA approach are shown.
 
-The scatterplot of loadings for common components can be represented separated for each block or together using a combined plot.
+The scatterplot of loadings are represented separated for each block. No joint representation is allowed.
 
 ```{r}
 # Loadings plot for common components
@@ -363,15 +351,9 @@ p2 <- plotRes(object=discoRes, comps=c(1, 2), what="loadings", type="common",
 grid.arrange(arrangeGrob(p1+theme(legend.position="none"),
                          p2+theme(legend.position="none"), nrow=1), 
              heights=c(6/7, 1/7))
-
-# Combined plot
-plotRes(object=discoRes, comps=c(1, 2), what="loadings", type="common",
-        combined=TRUE, block="", color="classname", shape=NULL,
-        labels=NULL, background=TRUE, palette=NULL, pointSize=4,
-        labelSize=NULL, axisSize=NULL, titleSize=NULL)
 ```
 
-In the case of individual components the same individual and combined plots can be represented.
+In the case of individual components the plots can be represented, too.
 
 ```{r}
 # Loadings plot for individual components
@@ -388,23 +370,17 @@ p2 <- plotRes(object=discoRes, comps=c(1, 2), what="loadings", type="individual"
 grid.arrange(arrangeGrob(p1+theme(legend.position="none"),
                          p2+theme(legend.position="none"), nrow=1), 
              heights=c(6/7, 1/7))
-
-# Combined plot
-plotRes(object=discoRes, comps=c(1, 1), what="loadings", type="individual",
-        combined=TRUE, block="", color="classname", shape=NULL,
-        labels=NULL, background=TRUE, palette=NULL, pointSize=4,
-        labelSize=NULL, axisSize=NULL, titleSize=NULL)
 ```
 
-Finally loadings associated to common and individual components can be plotted together using a combined plot.
+Moreover, the loadings associated to common and individual components can be plotted together using a combined plot for each block.
 
 ```{r}
 p1 <- plotRes(object=discoRes, comps=c(1, 1), what="loadings", type="both",
-              combined=TRUE, block="expr", color="classname", shape=NULL,
+              combined=FALSE, block="expr", color="classname", shape=NULL,
               labels=NULL, background=TRUE, palette=NULL, pointSize=4,
               labelSize=NULL, axisSize=NULL, titleSize=NULL)
 p2 <- plotRes(object=discoRes, comps=c(1, 1), what="loadings", type="both",
-              combined=TRUE, block="mirna", color="classname", shape=NULL,
+              combined=FALSE, block="mirna", color="classname", shape=NULL,
               labels=NULL, background=TRUE, palette=NULL, pointSize=4,
               labelSize=NULL, axisSize=NULL, titleSize=NULL)
 grid.arrange(arrangeGrob(p1+theme(legend.position="none"),
@@ -412,53 +388,52 @@ grid.arrange(arrangeGrob(p1+theme(legend.position="none"),
              heights=c(6/7, 1/7)) 
 ```
 
-For the `biplotRes()` function, the most relevant parameters are quite similar to the `plotRes()`:
-
-`object`
- ~  `caClass` object, usually a result from `omicsCompAnalysis()` function.
-`comps` 
- ~  Components to plot. If `combined=FALSE`, it indicates the x and y components of the `type` and `block` chosen. 
-`type=c("common", "individual")`
- ~  Are common or individual components had to be represented? In the case of combined plots (`combined=TRUE`) indicate if combined components are all from common or individual part or are one from each of them. 
-`block`
- ~  Indicates which block has to be represented. It can be specify by a numeric value (1 or 2) or a character (name of the block in the input data provided to the `omicsCompAnalysis()` analysis)
-
-For common components the biplots for DISCO-SCA and JIVE appraches are different from the biplots for O2PLS, because the scores structure is different. For loadings, biplots are the same for all the approaches.
+Finally, a joint plot with scores and loading for each block can be represented setting `what="both"`.
 
 ```{r, warning=FALSE}
-# Biplot common part. DISCO-SCA
-biplotRes(object=discoRes, type="common", comps=c(1, 2), block="",
-          title=NULL, colorCol="classname", sizeValues=c(2, 4),
-          shapeValues=c(17, 0), background=TRUE, pointSize=4,
-          labelSize=NULL, axisSize=NULL, titleSize=NULL) 
-
-# Biplot common part. O2PLS 
-p1 <- biplotRes(object=o2plsRes, type="common", comps=c(1, 2),
-                block="expr", title=NULL, colorCol="classname",
-                sizeValues=c(2, 4), shapeValues=c(17, 0),
-                background=TRUE, pointSize=4, labelSize=NULL,
-                axisSize=NULL, titleSize=NULL)
-p2 <- biplotRes(object=o2plsRes, type="common", comps=c(1, 2),
-                block="mirna", title=NULL, colorCol="classname",
-                sizeValues=c(2, 4), shapeValues=c(17, 0),
-                background=TRUE, pointSize=4, labelSize=NULL,
-                axisSize=NULL, titleSize=NULL)
+# Scores and loading plot for common part. DISCO-SCA
+p1 <- plotRes(object=discoRes, comps=c(1, 2), what="both", type="common", 
+          combined=FALSE, block="expr", color="classname", shape=NULL,
+          labels=NULL, background=TRUE, palette=NULL, pointSize=4,
+          labelSize=NULL, axisSize=NULL, titleSize=NULL,
+          sizeValues=c(2, 2), shapeValues=c(17, 0))
+p2 <- plotRes(object=discoRes, comps=c(1, 2), what="both", type="common", 
+          combined=FALSE, block="mirna", color="classname", shape=NULL,
+          labels=NULL, background=TRUE, palette=NULL, pointSize=4,
+          labelSize=NULL, axisSize=NULL, titleSize=NULL,
+          sizeValues=c(2, 2), shapeValues=c(17, 0))
 legend <- g_legend(p1)
 grid.arrange(arrangeGrob(p1+theme(legend.position="none"),
                          p2+theme(legend.position="none"), nrow=1),
              legend, heights=c(6/7, 1/7))
 
-# Biplot distinctive part. O2PLS 
-p1 <- biplotRes(object=discoRes, type="individual", comps=c(1, 2),
-                block="expr", title=NULL, colorCol="classname",
-                sizeValues=c(2, 4), shapeValues=c(17, 0),
-                background=TRUE, pointSize=4, labelSize=NULL,
-                axisSize=NULL, titleSize=NULL)
-p2 <- biplotRes(object=discoRes, type="individual", comps=c(1, 2),
-                block="mirna", title=NULL, colorCol="classname",
-                sizeValues=c(2, 4), shapeValues=c(17, 0),
-                background=TRUE, pointSize=4, labelSize=NULL,
-                axisSize=NULL, titleSize=NULL)
+# Scores and loadings plot for common part. O2PLS 
+p1 <- plotRes(object=o2plsRes, comps=c(1, 2), what="both", type="common", 
+          combined=FALSE, block="expr", color="classname", shape=NULL,
+          labels=NULL, background=TRUE, palette=NULL, pointSize=4,
+          labelSize=NULL, axisSize=NULL, titleSize=NULL,
+          sizeValues=c(2, 2), shapeValues=c(17, 0))
+p2 <- plotRes(object=o2plsRes, comps=c(1, 2), what="both", type="common", 
+          combined=FALSE, block="mirna", color="classname", shape=NULL,
+          labels=NULL, background=TRUE, palette=NULL, pointSize=4,
+          labelSize=NULL, axisSize=NULL, titleSize=NULL,
+          sizeValues=c(2, 2), shapeValues=c(17, 0))
+legend <- g_legend(p1)
+grid.arrange(arrangeGrob(p1+theme(legend.position="none"),
+                         p2+theme(legend.position="none"), nrow=1),
+             legend, heights=c(6/7, 1/7))
+
+# Scores and loadings plot for distinctive part. O2PLS 
+p1 <- plotRes(object=o2plsRes, comps=c(1, 2), what="both", type="individual", 
+          combined=FALSE, block="expr", color="classname", shape=NULL,
+          labels=NULL, background=TRUE, palette=NULL, pointSize=4,
+          labelSize=NULL, axisSize=NULL, titleSize=NULL,
+          sizeValues=c(2, 2), shapeValues=c(17, 0))
+p2 <- plotRes(object=o2plsRes, comps=c(1, 2), what="both", type="individual", 
+          combined=FALSE, block="mirna", color="classname", shape=NULL,
+          labels=NULL, background=TRUE, palette=NULL, pointSize=4,
+          labelSize=NULL, axisSize=NULL, titleSize=NULL,
+          sizeValues=c(2, 2), shapeValues=c(17, 0))
 legend <- g_legend(p1)
 grid.arrange(arrangeGrob(p1+theme(legend.position="none"),
                          p2+theme(legend.position="none"), nrow=1),
