@@ -16,10 +16,7 @@ setMethod(
     f="weightBlocks",
     signature=signature(xx="list"),
     definition=function(xx){
-        Data <- do.call("rbind",xx)
-        #dataWeight <- lapply(xx,function(X){X*(sqrt(as.numeric(nrow(Data))*as.numeric(nrow(Data))/ssq(X)))})
         dataWeight <- lapply(xx,function(X){X/sqrt(ssq(X))})
-        names(dataWeight) <- names(Data)
         return(dataWeight)
     }
 )
@@ -473,22 +470,25 @@ setMethod(
         Data="matrix"),
     definition=function(Data){
         X <- t(Data)
-        n<-ncol(X)
-        p<-nrow(X)
-        offset<-apply(X,2,mean)
-        Xoff<-X-(cbind(matrix(1,p,1))%*%rbind(offset))
+        n <- ncol(X) #number of features
+        p <- nrow(X) #number of samples
+        offset <- apply(X,2,mean) #feature mean
+        #Xoff <- X-(cbind(matrix(1,p,1))%*%rbind(offset))
+        
+        Xoff <- X-offset #substract mean column
+        
         #eigen command sorts the eigenvalues in decreasing orden.
-        eigen<-eigen(Xoff%*%t(Xoff)/(p-1))
-        var<-cbind(eigen$values/sum(eigen$values),cumsum(eigen$values/sum(eigen$values)))
+        eigen <- eigen(Xoff%*%t(Xoff)/(p-1))
+        var <- cbind(eigen$values/sum(eigen$values),cumsum(eigen$values/sum(eigen$values)))
         colnames(var) <- c("%var","%accumvar")
-        loadings2<-eigen$vectors
-        scores2<-t(Xoff)%*%loadings2
-        normas2<-sqrt(apply(scores2^2,2,sum))
-        scores1<-loadings2%*%diag(normas2)
-        loadings1<-scores2%*%diag(1/normas2)
+        loadings2 <- eigen$vectors
+        scores2 <- t(Xoff)%*%loadings2
+        normas2 <- sqrt(apply(scores2^2,2,sum))
+        scores1 <- loadings2%*%diag(normas2)
+        loadings1 <- scores2%*%diag(1/normas2)
         rownames(var) <- colnames(loadings1) <- colnames(scores1) <- paste("Comp.",1:ncol(scores1),sep="")
-        output<-list(eigen,var,scores1,loadings1)
-        names(output)<-c("eigen","var.exp","scores","loadings")
+        output <- list(eigen,var,scores1,loadings1)
+        names(output) <- c("eigen","var.exp","scores","loadings")
         return(output)
     }
 )
@@ -506,7 +506,7 @@ setMethod(
 ##    A: (matrix) Individual structure
 setGeneric(
     name="JIVE",
-    def=function(Data,r,rIndiv,ConvergenceThresh=10^(-10),maxIter=3000){standardGeneric("JIVE")}
+    def=function(Data,r,rIndiv,ConvergenceThresh=10^(-10),maxIter=1000){standardGeneric("JIVE")}
 )
 
 setMethod(
@@ -515,20 +515,24 @@ setMethod(
         Data="list",
         r="numeric",
         rIndiv="numeric"),
-    definition=function(Data,r,rIndiv,ConvergenceThresh=10^(-10),maxIter=3000){
+    definition=function(Data,r,rIndiv,ConvergenceThresh=10^(-10),maxIter=1000){
+      
         ## Number of blocks (datasets)
         nData <- length(Data)
+        
         ## Getting dimensions of matrices
         dataSizesOr <- as.data.frame(do.call("rbind",lapply(Data,dim)))
         colnames(dataSizesOr) <- c("rows","columns")
+        
         ## Checking if all datasets has the same number o columns (samples)
         n <- unique(dataSizesOr$columns)
         if(length(n)>1){
             stop("Data must have same number of columns(samples)")
         }
-        if (length(Data) != length(rIndiv)){
+        if (nData != length(rIndiv)){
             stop("Number of individual components for each block must be specify")
         }
+        
         ## Dimension reducing transformation for high-dimensional data
         origU <- list()
         dataSizes <- dataSizesOr
@@ -568,7 +572,8 @@ setMethod(
                 warning("Maximum number of iterations reached before convergence")
             }
         }
-        ## Transform back to original spapce
+        
+        ## Transform back to original space
         origJ <- origA <- NULL
         for(m in 1:nData){
             indexes <- max(1,dataSizes$rows[m-1]+1):sum(dataSizes$rows[1:m])
@@ -603,11 +608,11 @@ setMethod(
                     A=A,
                     commonComps=r,
                     distComps=rIndiv,
-                    scores=list(common=pcaJ$scores[,1:r],
+                    scores=list(common=as.matrix(pcaJ$scores[,1:r]),
                                 dist=list(Block1=as.matrix(pcaA1$scores[,1:rIndiv[1]]),Block2=as.matrix(pcaA2$scores[,1:rIndiv[2]]))),
-                    loadings=list(common=list(Block1=pcaJ$loadings[1:dataSizes$rows[1],1:r],
-                                              Block2=pcaJ$loadings[dataSizes$rows[1]:nrow(pcaJ$loadings),1:r]),
-                                  dist=list(Block1=pcaA1$loadings[,1:rIndiv[1]],Block2=pcaA2$loadings[,1:rIndiv[2]])),
+                    loadings=list(common=list(Block1=as.matrix(pcaJ$loadings[1:dataSizesOr$rows[1],1:r]),
+                                              Block2=as.matrix(pcaJ$loadings[(dataSizesOr$rows[1]+1):nrow(pcaJ$loadings),1:r])),
+                                  dist=list(Block1=as.matrix(pcaA1$loadings[,1:rIndiv[1]]),Block2=as.matrix(pcaA2$loadings[,1:rIndiv[2]]))),
                     VAF=list(common=commonVAF,dist=list(Block1=distVAF1,Block2=distVAF2)))
         return(res)
     }
@@ -617,7 +622,7 @@ setMethod(
 
 # PSVD --------------------------------------------------------------------
 ## Calculates rank R approximation of svd of AB' -- SVD of covariance matrix X_1'X_2
-# Calculates a base for the predictive space
+## Calculates a base for the predictive space
 ## INPUT:
 ##    A: (matrix) First block of data
 ##    B: (matrix) Second block of data
@@ -774,8 +779,8 @@ setMethod(
 ##    weight: (logical): Have blocks be weighted?
 ## OUTPUT:
 ##    An object of class 'caClass'
-
 #' @export
+#' @import Biobase
 #' @title Components analysis for multiple objects
 #' @aliases omicsCompAnalysis,list,character,character,numeric,numeric-method
 #' @description
@@ -937,102 +942,118 @@ setMethod(
 
 # selectCommonComps ------------------------------------------------------------
 ## INPUT:
-## X: (matrix) First block of data
-## Y: (matrix) Second block of data
+## Input: (list) List of expression sets one for each omic dataset
 ## Rmax: (numeric) Maximum number of common components
 ## OUTPUT:
 ## (numeric) Optimal number of common components
-#' @import ggplot2
-#' @import MASS
-#' @export
-#' @title Select common components in two data blocks
-#' @aliases selectCommonComps,matrix,matrix,numeric-method
-#' @description 
-#' This function applies a Simultaneous Component Analysis (SCA). The idea is that the scores for both blocks should have a similar behaviour if the components are in the common mode. Evaluation is by the ratios between the explained variances (SSQ) of each block and the estimator. The highest component count with 0.8 < ratio < 1.5 is selected.
-#' @usage selectCommonComps(X, Y, Rmax)
-#' @param X Matrix of omics data
-#' @param Y Matrix of omics data
-#' @param Rmax Maximum number of common components to find
-#' @return A list with components:
-#' \describe{
-#'      \item{common}{Optimal number of common components}
-#'      \item{ssqs}{Matrix of SSQ for each block and estimator}
-#'      \item{pssq}{\code{\link{ggplot}} object showing SSQ for each block and estimator}
-#'      \item{pratios}{\code{\link{ggplot}} object showing SSQ ratios between each block and estimator}
-#' }
-#' @author Patricia Sebastian-Leon
-#' @examples
-#' data(STATegRa_S3)
-#' cc <- selectCommonComps(X=Block1.PCA, Y=Block2.PCA, Rmax=3)
-#' cc$common
-#' cc$pssq
-#' cc$pratios
+## @import ggplot2
+## @import MASS
+## @export
+## @title Select common components in two data blocks
+## @aliases selectCommonComps,matrix,matrix,numeric-method
+## @description 
+## This function applies a Simultaneous Component Analysis (SCA). The idea is that the scores for both blocks should have a similar behaviour if the components are in the common mode. Evaluation is by the ratios between the explained variances (SSQ) of each block and the estimator. The highest component count with 0.8 < ratio < 1.5 is selected.
+## @usage selectCommonComps(Input, Rmax)
+## @param Input List of omics data; omics data as data matrix (with samples in columns and features in rows)
+## @param Rmax Maximum number of common components to find
+## @return A list with components:
+## \describe{
+##      \item{commonComps}{Optimal number of common components}
+##      \item{ssqs}{Matrix of SSQ for each block and estimator}
+##      \item{pssq}{\code{\link{ggplot}} object showing SSQ for each block and estimator}
+##      \item{pratios}{\code{\link{ggplot}} object showing SSQ ratios between each block and estimator}
+## }
+## @author Patricia Sebastian-Leon
+## @examples
+## data(STATegRa_S3)
+## cc <- selectCommonComps(Input=list(Block1.PCA,Block2.PCA), Rmax=3)
+## cc$common
+## cc$pssq
+## cc$pratios
 setGeneric(
     name="selectCommonComps",
-    def=function(X,Y,Rmax){standardGeneric("selectCommonComps")}
+    def=function(Input,Rmax){standardGeneric("selectCommonComps")}
 )
 
 setMethod(
     f="selectCommonComps",
     signature=signature(
-        X="matrix",
-        Y="matrix",
+        Input="list",
         Rmax="numeric"),
-    definition=function(X,Y,Rmax){
-        ## Center and scale matrices
-        X <- scale(t(X),center=TRUE,scale=FALSE)
-        X <- t(X/sqrt(ssq(X)))
-        Y <- scale(t(Y),center=TRUE,scale=FALSE)
-        Y <- t(Y/sqrt(ssq(Y)))
-        cb <- rbind(X,Y)
+    definition=function(Input,Rmax){
+        #Bind the different data sets
+        cb <- do.call(rbind, Input)
         svd1 <- svd(cb,nu=Rmax,nv=Rmax)
-        ssqs <- NULL
-        for(i in 1:Rmax){
-            if(i ==1){
-                loadings <- as.matrix(svd1$u[,1:i]*diag(svd1$d)[1:i,1:i])
+        all_ssqs <- NULL
+        #Get loadings
+        for(k in 1:Rmax){
+          if(k==1){
+            loadings <- as.matrix(svd1$u[,1:k]*diag(svd1$d)[1:k,1:k])
+          }else{
+            loadings <- svd1$u[,1:k]%*%diag(svd1$d)[1:k,1:k]
+          }
+          l <- list() #loadings per block
+          scores <- list() #scores per block
+          estimCont <- rep(list(list()),length(Input)) # estimate common blocks using their counterpart loadings
+          ssqs_estim <- list()
+          for(j in 1:length(Input)){
+            if(j==1){
+              l[[j]] <- as.matrix(loadings[1:nrow(Input[[j]]),])
             }else{
-                loadings <- svd1$u[,1:i]%*%diag(svd1$d)[1:i,1:i]
+              l[[j]] <- as.matrix(loadings[nrow(Input[[j-1]])+1:nrow(Input[[j]]),])
             }
-            l1 <- as.matrix(loadings[1:nrow(X),]) ## Block1 loadings
-            l2 <- as.matrix(loadings[(nrow(X)+1):(nrow(X)+nrow(Y)),]) ## Block2 loadings
             ## Calculate scores per block from the loadings
-            scoresX <- ginv(t(l1)%*%l1)%*%t(l1)%*%X
-            scoresY <- ginv(t(l2)%*%l2)%*%t(l2)%*%Y
-            ## Estimate common blocks using their scores
-            eX <- l1%*%scoresX
-            eY <- l2%*%scoresY
-            ## Estimate common blocks using their counterpart loadings
-            rX <- l1%*%scoresY
-            rY <- l2%*%scoresX
-            ssqs <- rbind(ssqs,c(ssq(eX),ssq(eY),ssq(rX),ssq(rY)))
+            scores[[j]] <- ginv(t(l[[j]])%*%l[[j]])%*%t(l[[j]])%*%Input[[j]]
+          }
+          ## Estimate common blocks using their scores or counterpart loadings
+          for(i in 1:length(Input)){
+            ssqs <- NULL
+            for(j in 1:length(Input)){
+              estimCont[[i]][[j]] <- l[[i]]%*%scores[[j]]
+              ssqs <- c(ssqs,ssq(estimCont[[i]][[j]]))
+            }
+            ssqs_estim[[i]] <- ssqs
+          }
+          all_ssqs <- rbind(all_ssqs, unlist(ssqs_estim))
         }
-        rownames(ssqs) <- 1:Rmax
-        colnames(ssqs) <- c("estX","estY","estXY","estYX")
+        rownames(all_ssqs) <- 1:Rmax
+        colnames(all_ssqs) <- paste("est",rep(1:length(Input),each=length(Input)),1:length(Input),sep="_")
+        
         ## Plot ssqs for estimated blocks
-        dfssq <- data.frame(ssq=c(ssqs),comps=rep(rownames(ssqs),ncol(ssqs)),block=rep(colnames(ssqs),each=nrow(ssqs)))
+        dfssq <- data.frame(ssq=c(all_ssqs),comps=rep(rownames(all_ssqs),ncol(all_ssqs)),block=rep(colnames(all_ssqs),each=nrow(all_ssqs)))
         p <- ggplot(dfssq,aes(x=comps,y=ssq,fill=block))+
             geom_bar(stat="identity",position="dodge")+
             xlab("Number of common components")+
             ylab("ssq of estimated block")
-        ## Determine acceptable ratios for allowed differences between 1st and 2nd block predictions
-        r13 <- ssqs[,1]/ssqs[,3]
-        r24 <- ssqs[,2]/ssqs[,4]
-        ssqratio <- data.frame(ratio=c(r13,r24),comp=c(names(r13),names(r24)),block=c(rep("ratioX",length(r13)),rep("ratioY",length(r24))))
+        
+        ## Determine acceptable ratios for allowed differences between blocks predictions
+        r <- NULL
+        rnames <- NULL
+        for(i in 1:length(Input)){
+          for(j in 1:length(Input))
+            if(j!=i){
+              r <- cbind(r,all_ssqs[,paste("est",i,i,sep="_")]/all_ssqs[,paste("est",i,j,sep="_")])
+              rnames <- c(rnames, paste("ratio Block ",i,"/",j,sep=""))
+            }
+        }
+        colnames(r) <- rnames
+        ssqratio <- data.frame(ratio=c(r),comp=rep(rownames(r),ncol(r)),block=rep(colnames(r),each=nrow(r)))
         p2 <- ggplot(ssqratio,aes(x=comp,y=ratio,fill=block))+
             geom_bar(stat="identity",position="dodge")+
             xlab("Number of common components")+
             ylab("Ratio between SSQ/estSSQ")+
             geom_hline(aes(yintercept=0.8),colour="black",linetype="dashed")+
             geom_hline(aes(yintercept=1.2),colour="black",linetype="dashed")
-        xx13 <- r13>0.8 & r13<1.25
-        xx24 <- r24>0.8 & r24<1.25
-        indexes <- which((r13>0.8 & r13<1.25) & (r24>0.8 & r24<1.25))
-        if (length(indexes)==0){
-            common <- 0
-        }else {
-            common <- max(indexes)
+        
+        common <- 0
+        for(i in 1:Rmax){
+          rvalues <- ssqratio$ratio[ssqratio$comp==i]
+          if(sum(rvalues > 0.8)==length(rvalues) & sum(rvalues < 1.25)==length(rvalues)){
+            common <- c(common,i)
+          }
         }
-        res <- list(common=common,ssqs=ssqs,pssq=p,pratios=p2)
+        common <- max(common)
+        res <- list(commonComps=common,ssqs=ssqs,pssq=p,pratios=p2)
         return(res)
     }
 )
@@ -1047,27 +1068,28 @@ setMethod(
 ## OUTPUT: (list)
 ## - PCAres: (list) Results of the PCA of the data
 ## - numComps: (numeric) Number of selected components applying the selected criterium
-#' @export
-#' @title Select an optimal number of components using PCA
-#' @aliases PCA.selection,matrix,character-method
-#' @description 
-#' Selects the optimal number of components from data using PCA. There are four different criteria available: accumulated variance explained, individual explained variance of each component, absolute value of variability or fixed number of components.
-#' @usage PCA.selection(Data, fac.sel, varthreshold=NULL, nvar=NULL, PCnum=NULL)
-#' @param Data Data matrix (with samples in columns and features in rows)
-#' @param fac.sel Selection criteria ("\%accum", "single\%", "rel.abs", "fixed.num")
-#' @param varthreshold Threshold for "\%accum" or "single\%" criteria
-#' @param nvar Threshold for "rel.abs"
-#' @param PCnum Fixed number of components for "fixed.num"
-#' @return List containing:
-#' \describe{
-#'      \item{PCAres}{List containing results of PCA, with fields "eigen", "var.exp", "scores" and "loadings"}
-#'      \item{numComps}{Number of components selected}
-#' }
-#' @author Patricia Sebastian Leon
-#' @examples 
-#' data(STATegRa_S3)
-#' ps <- PCA.selection(Data=Block2.PCA, fac.sel="single%", varthreshold=0.03)
-#' ps$numComps
+## desdocumentem la funcio. Funcio interna.
+## @export
+## @title Select an optimal number of components using PCA
+## @aliases PCA.selection,matrix,character-method
+## @description 
+## Selects the optimal number of components from data using PCA. There are four different criteria available: accumulated variance explained, individual explained variance of each component, absolute value of variability or fixed number of components.
+## @usage PCA.selection(Data, fac.sel, varthreshold=NULL, nvar=NULL, PCnum=NULL)
+## @param Data Data matrix (with samples in columns and features in rows)
+## @param fac.sel Selection criteria ("\%accum", "single\%", "rel.abs", "fixed.num")
+## @param varthreshold Threshold for "\%accum" or "single\%" criteria
+## @param nvar Threshold for "rel.abs"
+## @param PCnum Fixed number of components for "fixed.num"
+## @return List containing:
+## \describe{
+##      \item{PCAres}{List containing results of PCA, with fields "eigen", "var.exp", "scores" and "loadings"}
+##      \item{numComps}{Number of components selected}
+## }
+## @author Patricia Sebastian Leon
+## @examples 
+## data(STATegRa_S3)
+## ps <- PCA.selection(Data=Block2.PCA, fac.sel="single%", varthreshold=0.03)
+## ps$numComps
 setGeneric(
     name="PCA.selection",
     def=function(Data,fac.sel,varthreshold=NULL,nvar=NULL,PCnum=NULL){standardGeneric("PCA.selection")}
@@ -1107,37 +1129,57 @@ setMethod(
 ## (*) varthreshold: (numeric) Threshold for the selection of components in "%accum", "single%" criteriums
 ## (*) nvar: (numeric) Threshold applied when the option "rel.abs" is selected
 ## (*) PCnum: (numeric) Fixed number of components to select with the option"fixed.num"
+## (*) cente: "PERBLOCKS": Has center be applied before analysis?
+## (*) scale: "PERBLOCKS": Has scale be applied before analysis?
+## (*) weight: Logical indicating whether weighting is to be done.
+## (*) plot_common: Logical indicating whether to plot explained variance for common components
+## (*) plot_dist: Logical indicating whether to plot explained and accumulated variance fo distinctive components for each block 
 ## OUTPUT: (list)
 ## - common: Number of optimal common components
 ## - dist: Number of optimal distictive components for each block
+#' @importFrom  gridExtra arrangeGrob grid.arrange
+#' @import Biobase
+#' @import ggplot2
+#' @import MASS
 #' @export
 #' @title Find optimal common and distinctive components
 #' @aliases modelSelection,list,numeric,character-method
 #' @description 
-#' Uses \code{\link{selectCommonComps}} and \code{\link{PCA.selection}} to estimate the optimal number of common and distinctive components according to given selection criteria.
-#' @usage modelSelection(Input, Rmax, fac.sel, varthreshold=NULL, nvar=NULL, PCnum=NULL)
-#' @param Input List of two ExpressionSet objects
-#' @param Rmax Maximum common components (see \code{\link{selectCommonComps}})
-#' @param fac.sel PCA criteria (see \code{\link{PCA.selection}})
-#' @param varthreshold Cumulative variance criteria (see \code{\link{PCA.selection}})
-#' @param nvar Relative variance criteria (see \code{\link{PCA.selection}})
-#' @param PCnum Fixed component number (see \code{\link{PCA.selection}})
+#' Estimate the optimal number of common and distinctive components according to given selection criteria.
+#' @usage modelSelection(Input,Rmax,fac.sel,varthreshold=NULL,nvar=NULL,PCnum=NULL,center=FALSE,scale=FALSE,weight=FALSE, plot_common=FALSE, plot_dist=FALSE)
+#' @param Input List of \code{ExpressionSet} objects, one for each block of data
+#' @param Rmax Maximum common components
+#' @param fac.sel PCA criteria for selection ("\%accum", "single\%", "rel.abs", "fixed.num")
+#' @param varthreshold Cumulative variance criteria for PCA selection. Threshold for "\%accum" or "single\%" criteria.
+#' @param nvar Relative variance criteria. Threshold for "rel.abs".
+#' @param PCnum Fixed number of components for "fixed.num".
+#' @param center Character (or FALSE) specifying which (if any) centering will be applied before analysis. Choices are "PERBLOCKS" (each block separately) or "ALLBLOCKS" (all data together).
+#' @param scale Character (or FALSE) specifying which (if any) scaling will be applied before analysis. Choices are "PERBLOCKS" (each block separately) or "ALLBLOCKS" (all data together).
+#' @param weight Logical indicating whether weighting is to be done. Choices are "BETWEEN-BLOCKS"
+#' @param plot_common Logical indicating whether to plot the explained variances (SSQ) of each block and its estimation and the ratios
+#' @param plot_dist Logical indicating whether to plot the explained variances (SSQ) and the accumulated variance for each block
 #' @return List containing:
 #' \describe{
-#'      \item{common}{Number of common components}
-#'      \item{dist}{Number of distinct components per input block}
+#'      \item{common}{List with common components results}
+#'      \item{commonComps}{Optimal number of common components}
+#'      \item{ssqs}{Matrix of SSQ for each block and estimator}
+#'      \item{pssq}{\code{\link{ggplot}} object showing SSQ for each block and estimator}
+#'      \item{pratios}{\code{\link{ggplot}} object showing SSQ ratios between each block and estimator}
+#'      \item{dist}{List containg the results of distinct PCA for each input block; for each block PCAres and numComps is returned within a list}
+#'      \item{PCAres}{List containing results of PCA, with fields "eigen", "var.exp", "scores" and "loadings"}
+#'      \item{nomComps}{Number of components selected}
 #' }
 #' @author Patricia Sebastian-Leon
-#' @seealso \code{\link{selectCommonComps}},\code{\link{PCA.selection}},\code{\link{omicsCompAnalysis}}
+#' @seealso \code{\link{omicsCompAnalysis}}
 #' @examples
 #' data(STATegRa_S3)
 #' B1 <- createOmicsExpressionSet(Data=Block1.PCA,pData=ed.PCA,pDataDescr=c("classname"))
 #' B2 <- createOmicsExpressionSet(Data=Block2.PCA,pData=ed.PCA,pDataDescr=c("classname"))
-#' ms <- modelSelection(Input=list(B1, B2), Rmax=4, fac.sel="single\%", varthreshold=0.03)
+#' ms <- modelSelection(Input=list(B1, B2), Rmax=3, fac.sel="single\%", varthreshold=0.03, center=TRUE, scale=FALSE, weight=TRUE, plot_common=FALSE, plot_dist=FALSE)
 #' ms
 setGeneric(
     name="modelSelection",
-    def=function(Input,Rmax,fac.sel,varthreshold=NULL,nvar=NULL,PCnum=NULL){standardGeneric("modelSelection")}
+    def=function(Input,Rmax,fac.sel,varthreshold=NULL,nvar=NULL,PCnum=NULL,center=FALSE,scale=FALSE,weight=FALSE, plot_common=FALSE, plot_dist=FALSE){standardGeneric("modelSelection")}
 )
 
 setMethod(
@@ -1146,20 +1188,93 @@ setMethod(
         Input="list",
         Rmax="numeric",
         fac.sel="character"),
-    definition=function(Input,Rmax,fac.sel,varthreshold,nvar,PCnum){
-        X <- exprs(Input[[1]])
-        Y <- exprs(Input[[2]])
-        ## For the moment we did not cross validate de number of individual components!!
-        n1 <- PCA.selection(X,fac.sel=fac.sel,varthreshold=varthreshold,nvar=nvar,PCnum=PCnum)$numComps
-        n2 <- PCA.selection(Y,fac.sel=fac.sel,varthreshold=varthreshold,nvar=nvar,PCnum=PCnum)$numComps
-        if (Rmax > min(n1,n2)){
-            Rmax <- min(n1,n2)
-            warning(paste("Rmax cannot be higher than the minimum of components selected for each block. Rmax fixed to:",Rmax))
+    definition=function(Input,Rmax,fac.sel,varthreshold,nvar,PCnum,center,scale,weight,plot_common,plot_dist){
+      ## STEP1: Reading and checking provided data
+      ## Expression sets
+      orData <- Input
+      if(!all(do.call("c",lapply(orData,FUN=class))=="ExpressionSet")){
+        warning("Please provide a list of expression sets")
+        return();
+      }
+      ## Converting expression sets list in matrices list
+      Data <- lapply(orData,exprs)
+      ## Number of Expression sets
+      nData <- length(Data)
+      ## Expression sets names
+      ##if (is.null(Names)){
+      ##  Names <- paste("Block",1:nData)
+      ##}
+      ## Check if number of columns/samples is the same in all datasets
+      if(length(unique(do.call("c",lapply(Data,FUN=ncol))))!=1){
+        warning("Number of samples is not the same for all data sets")
+        return();
+      }
+      prepros <- NULL
+      ## STEP2: Center & scale datasets if selected
+      if(center & scale){
+        prepros <- c(prepros,"centered & scaled")
+        Data <- lapply(Data,function(x){t(scale(t(x),center=TRUE,scale=TRUE))})
+      }else{
+        if(center){
+          prepros <- c(prepros,"centered")
+          Data <- lapply(Data,function(x){t(scale(t(x),center=TRUE,scale=FALSE))})
         }
-        common <- selectCommonComps(X,Y,Rmax)$common
-        ## Calculate number of optimal components
-        res <- list(common=common,dist=c(n1-common,n2-common))
-        return(res)
+        ## STEP3: Scale datasets if selected
+        if(scale){
+          prepros <- c(prepros,"scaled")
+          Data <- lapply(Data,function(x){t(scale(t(x),center=FALSE,scale=TRUE))})
+        }
+      }
+      ## STEP4: Weight datasets if selected
+      if(weight){
+        prepros <- c(prepros,"weighted")
+        Data <- weightBlocks(Data)
+      }
+      if(is.null(prepros)){
+        prepros <- "none"
+      }
+      ## Generalized to more than 2 data sets
+      n <- list()
+      for(i in 1:length(Data)){
+        ## For the moment we did not cross validate de number of individual components!!
+        n[[i]] <- PCA.selection(Data[[i]],fac.sel=fac.sel,varthreshold=varthreshold,nvar=nvar,PCnum=PCnum)
+      }
+      num_comps <- lapply(n,FUN=function(x){return(x$numComps)})
+      min_num_comps <- min(unlist(num_comps))
+      if (Rmax > min_num_comps){
+        Rmax <- min_num_comps
+        warning(paste("Rmax cannot be higher than the minimum of components selected for each block. Rmax fixed to:",Rmax))
+      }
+      #common <- selectCommonComps(X,Y,Rmax)$common  ##When 2 datasets
+      common <- selectCommonComps(Data,Rmax)
+      ## Calculate number of optimal components
+      n[[1]]$numComps  <- n[[1]]$numComps - common$commonComps
+      n[[2]]$numComps  <- n[[2]]$numComps - common$commonComps
+      res <- list(common=common,dist=n)
+      ## Print common and distinctive components + graphics
+      if(plot_common){
+        grid.arrange(common$pssq, common$pratios, ncol=length(Data))
+      }
+      if(plot_dist){
+        par(ask=TRUE)
+        for(i in 1:length(res[['dist']])){
+          pcadf <- data.frame(components=factor(rep(1:10,2),levels=1:10),
+                             var=unlist(c(res[['dist']][[i]]$PCAres$var.exp[1:10,])),
+                             mylabel=rep(colnames(res[['dist']][[i]]$PCAres$var.exp),each=10))
+          p <- ggplot(pcadf,aes(x=components,y=var,fill=mylabel))+
+          geom_bar(stat="identity",position="dodge")+
+          ggtitle(names(Input)[i])+
+          geom_hline(yintercept=varthreshold,linetype="dotted")
+          print(p)
+        }
+        par(ask=FALSE)
+      }
+      cat("Common components\n")
+      print(common$commonComps)
+      cat("\nDistinctive components\n")
+      print(lapply(n,FUN=function(x){return(x$numComps)}))
+      ## Print common and distinctive components + graphics
+      return(res)
     }
 )
 
