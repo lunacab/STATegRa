@@ -1,3 +1,15 @@
+1.13.0
+
+    * Correction in 'JIVE' internal function, problem in common loadings output. 
+    * Add arguments 'center', 'scale' and 'weight' in 'modelSelection' function to define how to scale the data types.
+    * Add plot options in 'modelSelection' functions: 'plot_common' and 'plot_dist'.
+    * Unify 'biplotRes' and 'plotRes' functions in a unique function 'plotRes'
+    * Solve 'getLoadings' error
+    * Reduced the title size from 'plotVAF' method
+    * Update vignette
+
+
 Changes in initial version 1.0.0
 
     * Initial release of the STATegRa package for multi-omics data analysis.
+
