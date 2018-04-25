@@ -2,7 +2,7 @@
 % Please edit documentation in R/STATegRa_omicsPCA_plotting.R
 \name{plotRes}
 \alias{plotRes}
-\alias{plotRes,caClass,numeric,character,character,logical}
+\alias{plotRes,caClass,numeric,character,character,logical-method}
 \title{Plot component analysis results}
 \usage{
 plotRes(object, comps=c(1, 2), what, type, combined, block=NULL, 
