@@ -232,7 +232,7 @@ setMethod(
 #' @importFrom  gridExtra arrangeGrob grid.arrange
 #' @import Biobase
 #' @title Plot component analysis results
-#' @aliases plotRes,caClass,numeric,character,character,logical
+#' @aliases plotRes,caClass,numeric,character,character,logical-method
 #' @description 
 #' Plot scatterplots of scores or loadings, for common and distinctive parts as well as combined plots.
 #' @usage plotRes(object, comps=c(1, 2), what, type, combined, block=NULL, 
