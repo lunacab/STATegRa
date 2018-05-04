@@ -1,4 +1,4 @@
-1.13.0
+1.16.0
 
     * Correction in 'JIVE' internal function, problem in common loadings output. 
     * Add arguments 'center', 'scale' and 'weight' in 'modelSelection' function to define how to scale the data types.
@@ -7,7 +7,6 @@
     * Solve 'getLoadings' error
     * Reduced the title size from 'plotVAF' method
     * Update vignette
-    * Update maintainers
 
 
 Changes in initial version 1.0.0

@@ -4,15 +4,18 @@ B1 <- createOmicsExpressionSet(Data=Block1.PCA, pData=ed.PCA, pDataDescr=c("clas
 B2 <- createOmicsExpressionSet(Data=Block2.PCA, pData=ed.PCA, pDataDescr=c("classname"))
 
 test_modelSelection_single <- function() {
-    res <- modelSelection(Input=list(B1, B2), Rmax=4, fac.sel="single%", varthreshold=0.03)
-    checkEquals(res$common, 2)
-    checkEquals(res$dist, c(2, 2))
+    res <- modelSelection(Input=list(B1, B2), Rmax=4, fac.sel="single%", varthreshold=0.03, center=TRUE, scale=FALSE, weight=TRUE, plot_common=FALSE, plot_dist=FALSE)
+    checkEquals(res$common$commonComps, 2)
+    checkEquals(res$dist[[1]]$numComps, 2)
+    checkEquals(res$dist[[2]]$numComps, 2)
 }
 
+
 test_modelSelection_accum <- function() {
-    res <- modelSelection(Input=list(B1, B2), Rmax=4, fac.sel="%accum", varthreshold=0.9)
-    checkEquals(res$common, 2)
-    checkEquals(res$dist, c(0, 0))
+    res <- modelSelection(Input=list(B1, B2), Rmax=4, fac.sel="%accum", varthreshold=0.9, center=TRUE, scale=FALSE, weight=TRUE, plot_common=FALSE, plot_dist=FALSE)
+    checkEquals(res$common$commonComps, 2)
+    checkEquals(res$dist[[1]]$numComps, 0)
+    checkEquals(res$dist[[2]]$numComps, 0)
 }
 
 #test_modelSelection_relabs <- function() {
@@ -21,7 +24,8 @@ test_modelSelection_accum <- function() {
 #}
 
 test_modelSelection_fixednum <- function() {
-    res <- modelSelection(Input=list(B1, B2), Rmax=4, fac.sel="fixed.num", PCnum=3)
-    checkEquals(res$common, 2)
-    checkEquals(res$dist, c(1, 1))
+    res <- modelSelection(Input=list(B1, B2), Rmax=4, fac.sel="fixed.num", PCnum=3, center=TRUE, scale=FALSE, weight=TRUE, plot_common=FALSE, plot_dist=FALSE)
+    checkEquals(res$common$commonComps, 2)
+    checkEquals(res$dist[[1]]$numComps, 1)
+    checkEquals(res$dist[[2]]$numComps, 1)
 }
