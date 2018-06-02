@@ -10,7 +10,7 @@
 #' @param mappings List of annotations.
 #' @param reference If the annotations are data frame, matrices or bioMap objects, 
 #' the name of the column containing the reference elements
-#' @param retainAll Logical, if set to TRUE measurements that have no counterparts in other datasets are retained
+#' @param retainAll Logical, if set to TRUE combination not covering all available data modalities are retained.
 #'
 #' @return A data frame encoding the mapping across several dataset
 #'
@@ -211,12 +211,11 @@ combiningMappings <- function(mappings, reference = NULL, retainAll = FALSE){
   #making reference as the last column
   mapping[[reference]] <- referenceElements; #this will put the reference as last column
   
-  #new rownames and ensuring uniquiness
+  #ensuring uniquiness
   newRownames <- apply(mapping, 1, function(x){paste(x, collapse = ':')});
   toKeep <- !duplicated(newRownames);
   mapping <- mapping[toKeep, ];
-  newRownames <- newRownames[toKeep];
-  rownames(mapping) <- newRownames;
+  rownames(mapping) <- NULL;
   
   #naming the columns of mapping
   colnames(mapping) <- c(names(mappings), reference);
@@ -230,6 +229,13 @@ combiningMappings <- function(mappings, reference = NULL, retainAll = FALSE){
   isAllNAs <- which(apply(mapping, 1, function(x){all(is.na(x))}))
   if(length(isAllNAs) > 0){
     mapping <- mapping[-isAllNAs, ]
+  }
+  
+  #removing rows with only one non-NA values
+  numNAs <- apply(mapping, 1, function(x){sum(is.na(x))})
+  toRemove <- which(numNAs == (dim(mapping)[2] - 2))
+  if(length(toRemove) > 0){
+    mapping <- mapping[-toRemove, ]
   }
   
   #ordering according to reference
