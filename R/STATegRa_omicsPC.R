@@ -3,53 +3,40 @@
 #' @import edgeR
 #' @import limma
 #' @import foreach
-#' @title omicsNPC, applying the Non-Parametric Combination (NPC) on omics datasets
-#' @aliases omicsNPC,list,data.frame-method omicsNPC,list,missing-method
+#' @title omicsPC, applying the Parametric Combination (PC) on omics datasets
+#' @aliases omicsPC,list,data.frame-method omicsPC,list,missing-method
 #' @description
-#' This function applies the NonParametric Combination methodology on the integrative analysis 
+#' This function applies parametric combination methods on the integrative analysis 
 #' of different omics data modalities.
 #' It retrieves genes associated to a given outcome, taking into account all omics data.
 #' First, each datatype is analyzed independently using the appropriate method.
 #' omicsNPC analyses continuous data (microarray) using limma, while count data (e.g., RNAseq) 
 #' are first preprocessed with using the "voom" function. The user can also specify their own 
 #' function for computing deregulation / association 
-#' The p-values from the single dataset analysis are then combined employing Fisher, 
-#' Liptak and Tippett combining functions.
-#' The Tippett function returns findings which are supported by at least one omics modality.
-#' The Liptak function returns findings which are supportd by most modalities.
-#' The Fisher function has an intermediate behavior between those of Tippett and Liptak.
-#' @usage omicsNPC(dataInput, dataMapping, dataTypes = rep('continuous', length(dataInput)), 
-#'                combMethods = c("Fisher", "Liptak", "Tippett"), numPerms = 1000, 
-#'                numCores = 1, verbose = FALSE, functionGeneratingIndex = NULL, 
-#'                outcomeName = NULL, allCombinations = FALSE, 
-#'                dataWeights = rep(1, length(dataInput))/length(dataInput), 
-#'                returnPermPvalues = FALSE, ...)
+#' The p-values from the single dataset analysis are then combined employing several combining functions, 
+#' see references for further information.
+#' @usage omicsPC(dataInput, dataMapping, dataTypes = rep('continuous', length(dataInput)), 
+#'                combMethods = c("Fisher", "Liptak", "Tippett", "Benjamini", "Simes", "Sidak"), 
+#'                verbose = FALSE, outcomeName = NULL, allCombinations = FALSE, ...)
 #'
 #' @param dataInput List of ExpressionSet objects, one for each data modality. 
 #' @param dataMapping A data frame describing how to map measurements across datasets. See details for more information.
 #' @param dataTypes Character vector with possible values: 'continuous', 'count'. Alternatively, a list of functions for assessing deregulation / association with an outcome
-#' @param combMethods Character vector with possible values: 'Fisher', 'Liptak', 'Tippett'. If more than one is specified, all will be used.
-#' @param numPerms Number of permutations
-#' @param numCores Number of CPU cores to use
+#' @param combMethods Character vector with possible values: "Fisher", "Liptak", "Tippett", "Benjamini", "Simes", "Sidak". If more than one is specified, all will be used.
 #' @param verbose Logical, if set to TRUE omicsNPC prints out the step that it performs
-#' @param functionGeneratingIndex Function generating the indices for randomly permuting the samples
 #' @param outcomeName Name of the outcome of interest / experimental factor, as reported in the design matrices. If NULL, the last column of the design matrices is assumed to be the outcome of interest.
 #' @param allCombinations Logical, if TRUE all combinations of omics datasets are considered
-#' @param dataWeights A vector specifying the weigth to give to each dataset. Note that sum(dataWeights) should be 1.
-#' @param returnPermPvalues Logical, should the p-values computed at each permutation being returned?
 #' @param ... Additional arguments to be passed to the user-defined functions
 #'
 #' @return A list containing:
 #' stats0 Partial deregulation / association statistics 
 #' pvalues0 The partial p-values computed on each dataset
-#' pvaluesNPC The p-values computed through NPC.
-#' permPvalues The p-values computed at each permutation
+#' pvaluesPC The p-values computed through PC.
 #'
-#' @author Nestoras Karathanasis, Vincenzo Lagani
+#' @author Vincenzo Lagani
 #'
 #' @references
-#' Pesarin, Fortunato, and Luigi Salmaso. Permutation tests for complex data: theory, applications and software.
-#' John Wiley & Sons, 2010.
+#' Peter H. Westfall. Combining P values. Encyclopedia of Biostatistics (2005).
 #' Nestoras Karathanasis, Ioannis Tsamardinos and Vincenzo Lagani. omicsNPC: applying the Non-Parametric Combination 
 #' methodology to the integrative analysis of heterogeneous omics data. PlosONE 11(11): e0165545. doi:10.1371/journal.pone.0165545
 #'
@@ -59,45 +46,34 @@
 #' # Setting dataTypes, the first two ExpressionSets include RNAseq data,
 #' # the third ExpressionSet includes Microarray data.
 #' dataTypes <- c("count", "count", "continuous")
-#' # Setting methods to combine pvalues
-#' combMethods = c("Fisher", "Liptak", "Tippett")
-#' # Setting number of permutations
-#' numPerms = 1000
-#' # Setting number of cores
-#' numCores = 1
+#' # Setting methods to combine pvalues. Notice that Benjamini and Simes are actually the same method
+#' combMethods = c("Fisher", "Liptak", "Tippett", "Benjamini", "Simes", "Sidak")
 #' # Setting omicsNPC to print out the steps that it performs.
 #' verbose = TRUE
 #' # Run omicsNPC analysis.
-#' # The output contains a data.frame of p-values, where each row corresponds to a gene, 
-#' # and each column corresponds to a method used in the analysis.
+#' # The output list contains a data.frame of p-values, namely 'pvaluesPC', where each row 
+#' # corresponds to a gene, and each column corresponds to a method used in the analysis.
 #' 
-#' \dontrun{out <- omicsNPC(dataInput = TCGA_BRCA_Data, dataTypes = dataTypes,
-#'                             combMethods = combMethods, numPerms = numPerms,
-#'                             numCores = numCores, verbose = verbose)}
+#' \dontrun{out <- omicsPC(dataInput = TCGA_BRCA_Data, dataTypes = dataTypes,
+#'                             combMethods = combMethods, verbose = verbose)}
 
-setGeneric(name="omicsNPC",
+setGeneric(name="omicsPC",
            def=function(dataInput,
                         dataMapping,
                         dataTypes = rep('continuous', length(dataInput)),
-                        combMethods = c("Fisher", "Liptak", "Tippett"),
-                        numPerms = 1000,
-                        numCores = 1,
+                        combMethods = c("Fisher", "Liptak", "Tippett", "Benjamini", "Simes", "Sidak"),
                         verbose = FALSE,
-                        functionGeneratingIndex = NULL,
                         outcomeName = NULL,
                         allCombinations = FALSE,
-                        dataWeights = rep(1, length(dataInput))/length(dataInput),
-                        returnPermPvalues = FALSE,
                         ...)
-               {standardGeneric("omicsNPC")}
+               {standardGeneric("omicsPC")}
 )
 
 setMethod(
-    f="omicsNPC",
+    f="omicsPC",
     signature=signature(dataInput = "list", dataMapping = 'data.frame'),
-    definition=function(dataInput, dataMapping, dataTypes, combMethods, numPerms, 
-                        numCores, verbose, functionGeneratingIndex, outcomeName, 
-                        allCombinations, dataWeights, returnPermPvalues, ...){
+    definition=function(dataInput, dataMapping, dataTypes, combMethods, 
+                        verbose, outcomeName, allCombinations, ...){
         
       # Input check 
 
@@ -123,12 +99,7 @@ setMethod(
         }
       }
       
-      #weigths
-      if(sum(dataWeights) != 1){
-        stop('dataWeights must be a numeric vector such that sum(dataWeights) == 1')
-      }
-      
-      # Create input for internal omicsNPC 
+      # Create input for internal omicsPC 
       
       # extract matrices from ExpressionSet
       dataMatrices <- lapply(dataInput, FUN = exprs)
@@ -160,25 +131,15 @@ setMethod(
         functionsAnalyzingData <- dataTypes;
       }
       
-      # function to permute data
-      if(is.null(functionGeneratingIndex)){
-        functionGeneratingIndex <- generate_iid_data_index 
-      }
-      
-      # run omicsNPC 
-      output <- omicsNPC_internal(dataMatrices = dataMatrices, 
+      # run omicsPC 
+      output <- omicsPC_internal(dataMatrices = dataMatrices, 
                                   designs = designs,
                                   dataMapping = dataMapping,
                                   combMethods = combMethods,
                                   functionsAnalyzingData = functionsAnalyzingData,
-                                  functionGeneratingIndex = functionGeneratingIndex,
                                   outcomeName = outcomeName,
-                                  numPerms = numPerms,
-                                  numCores = numCores,
                                   verbose = verbose,
                                   allCombinations = allCombinations,
-                                  dataWeights = dataWeights,
-                                  returnPermPvalues = returnPermPvalues,
                                   ...)
 
       #returning the results
@@ -188,9 +149,9 @@ setMethod(
 )
 
 setMethod(
-  f="omicsNPC",
+  f="omicsPC",
   signature=signature(dataInput = "list", dataMapping = 'missing'),
-  definition=function(dataInput, dataMapping, dataTypes, combMethods, numPerms, numCores, verbose, functionGeneratingIndex, outcomeName, returnPermPvalues, ...){
+  definition=function(dataInput, dataMapping, dataTypes, combMethods, verbose, outcomeName, ...){
     
     # Input check 
     
@@ -212,15 +173,10 @@ setMethod(
       if(class(dataTypes) != 'list'){
         stop('dataTypes must be either a character vector or a list')
       }else{
-        if(length(datatypes) == 0 || class(dataTypes[[1]]) != 'function'){
+        if(length(dataTypes) == 0 || class(dataTypes[[1]]) != 'function'){
           stop('if dataTypes is a list it must contain functions')
         }
       }
-    }
-    
-    #weigths
-    if(sum(dataWeights) != 1){
-      stop('dataWeights must be a numeric vector such that sum(dataWeights) == 1')
     }
     
     #creating the data mapping based on the rownames 
@@ -232,7 +188,7 @@ setMethod(
     }
     dataMapping <- combiningMappings(mappings = mappings, reference = 'reference', retainAll = TRUE);
     
-    # Create input for internal omicsNPC 
+    # Create input for internal omicsPC 
     
     # extract matrices from ExpressionSet
     dataMatrices <- lapply(dataInput, FUN = exprs)
@@ -264,25 +220,15 @@ setMethod(
       functionsAnalyzingData <- dataTypes;
     }
     
-    # function to permute data
-    if(is.null(functionGeneratingIndex)){
-      functionGeneratingIndex <- generate_iid_data_index 
-    }
-    
-    # run omicsNPC 
-    output <- omicsNPC_internal(dataMatrices = dataMatrices, 
+    # run omicsPC 
+    output <- omicsPC_internal(dataMatrices = dataMatrices, 
                                 designs = designs,
                                 dataMapping = dataMapping,
                                 combMethods = combMethods,
                                 functionsAnalyzingData = functionsAnalyzingData,
-                                functionGeneratingIndex = functionGeneratingIndex,
                                 outcomeName = outcomeName,
-                                numPerms = numPerms,
-                                numCores = numCores,
                                 verbose = verbose,
                                 allCombinations = allCombinations,
-                                dataWeights = dataWeights,
-                                returnPermPvalues = returnPermPvalues,
                                 ...)
     
     #returning the results
