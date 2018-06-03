@@ -45,5 +45,10 @@ for(i in 1:numCombMethods){
   pvaluesPC[, i] <- combiningPvaluesParametric(pvalues0, combMethods[i])
 }
 
+x2 <- -2 * (log(pvalues0[, 1]) + log(pvalues0[, 2]))
+fisherPvalues <- pchisq(x2, 4, lower.tail = FALSE)
+
+pvalues0
 pvaluesNPC
 pvaluesPC
+fisherPvalues

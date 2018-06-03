@@ -439,7 +439,7 @@ computePvaluesVect <- function(statsVect){
   #for example, by changing the sign of negative statistics and putting to zero the positive ones, 
   #or by returning the -log(desiredOneTailedPvalue)
   #THIS IS NOT CHANGED: we take the absolute value of the statistics! See above
-  numLargerValues <- numStatistics - rank(statsVect, na.last = "keep", ties.method = "min");
+  numLargerValues <- numStatistics - data.table::frank(statsVect, na.last = "keep", ties.method = "min");
   
   #correction for avoiding zero p-values
   pvaluesVect <- (numLargerValues + 1)/(numStatistics);
