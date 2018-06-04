@@ -11,8 +11,9 @@
 #' It retrieves genes associated to a given outcome, taking into account all omics data.
 #' First, each datatype is analyzed independently using the appropriate method.
 #' omicsNPC analyses continuous data (microarray) using limma, while count data (e.g., RNAseq) 
-#' are first preprocessed with using the "voom" function. The user can also specify their own 
-#' function for computing deregulation / association 
+#' are first normalized using the trimmed mean of M-values normalization method (TMM) 
+#' and preprocessed with using the "voom" function. 
+#' The user can also specify their own function for computing deregulation / association 
 #' The p-values from the single dataset analysis are then combined employing Fisher, 
 #' Liptak and Tippett combining functions.
 #' The Tippett function returns findings which are supported by at least one omics modality.
