@@ -78,9 +78,7 @@ omicsNPC_internal <- function(dataMatrices,
         doSNOW::registerDoSNOW(cl)
     
         # compute DE expression
-        statsPerm <- foreach(i = 1:numPerms, .packages = c('limma', 'survival', 'mdgsa')) %dopar% {
-          source('../../omicsNPC/code/stategra/R/STATegRa_omicsNPC_internal.R');
-          source('../../omicsNPC/code/stategra/R/STATegRa_omicsNPC_ancillaryFunctions.R');
+        statsPerm <- foreach(i = 1:numPerms, .packages = c('limma', 'survival')) %dopar% {
           tryCatch({executePermutation(...)}, 
                    error = function(e){
                      tempRes <- matrix(NA, dim(dataMapping)[1], dim(dataMapping)[2] - 1);
@@ -91,7 +89,7 @@ omicsNPC_internal <- function(dataMatrices,
                    )
          
           }
-        #system.time(statsPerm <- foreach(i = 1:numPerms, .packages = c('foreach', 'limma', 'survival', 'mdgsa')) %dopar% {executePermutation()})
+        #system.time(statsPerm <- foreach(i = 1:numPerms, .packages = c('foreach', 'limma', 'survival')) %dopar% {executePermutation()})
         
         #stopping the cluster
         parallel::stopCluster(cl)
@@ -276,8 +274,6 @@ omicsNPC_internal <- function(dataMatrices,
       
       for(i in 1:numCombMethods){
         statsNPC[ , i, ] <- foreach(k = 1:dim(pvaluesPerm)[3], .combine = 'cbind') %dopar% {
-          source('../../omicsNPC/code/stategra/R/STATegRa_omicsNPC_internal.R');
-          source('../../omicsNPC/code/stategra/R/STATegRa_omicsNPC_ancillaryFunctions.R');
           combiningPvalues(as.matrix(pvaluesPerm[ , , k]), method = combMethods[i], dataWeights = dataWeights);
         }
       }
@@ -319,8 +315,6 @@ omicsNPC_internal <- function(dataMatrices,
   }
   
   #creating the object to return
-  #Note: for the moment is only a list. It will be a proper object in a next release
-  #pvaluesNPC: either a matrix (allCombinations = FALSE) or a list (allCombinations = TRUE)
   toReturn <- list(stats0 = stats0, pvalues0 = pvalues0, pvaluesNPC = pvaluesNPC);
   if(returnPermPvalues){
     toReturn$pvaluesPerm = pvaluesPerm;

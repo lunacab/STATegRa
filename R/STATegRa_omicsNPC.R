@@ -17,25 +17,27 @@
 #' The p-values from the single dataset analysis are then combined employing Fisher, 
 #' Liptak and Tippett combining functions.
 #' The Tippett function returns findings which are supported by at least one omics modality.
-#' The Liptak function returns findings which are supportd by most modalities.
+#' The Liptak function returns findings which are supported by most modalities.
 #' The Fisher function has an intermediate behavior between those of Tippett and Liptak.
-#' @usage omicsNPC(dataInput, dataMapping, dataTypes = rep('continuous', length(dataInput)), 
+#' @usage omicsNPC(dataInput, dataMapping = NULL, dataTypes = rep('continuous', length(dataInput)), 
+#'                phenotypeData = NULL, targetName = NULL, 
 #'                combMethods = c("Fisher", "Liptak", "Tippett"), numPerms = 1000, 
 #'                numCores = 1, verbose = FALSE, functionGeneratingIndex = NULL, 
 #'                outcomeName = NULL, allCombinations = FALSE, 
 #'                dataWeights = rep(1, length(dataInput))/length(dataInput), 
 #'                returnPermPvalues = FALSE, ...)
 #'
-#' @param dataInput List of ExpressionSet objects, one for each data modality. 
+#' @param dataInput List of ExpressionSet objects / data matrices / data frames, one for each data modality.
 #' @param dataMapping A data frame describing how to map measurements across datasets. See details for more information. If NULL (default) all combinations of omics datasets are considered.
 #' @param dataTypes Character vector with possible values: 'continuous', 'count'. Alternatively, a list of functions for assessing deregulation / association with an outcome.
+#' @param phenotypeData A data frame or matrix containing the phenotype information (covariates and outcome) to be used in the analysis. It can be vector if it contains only the outcome. If NULL, dataInput must contain ExpressionSet objects, and each ExpressionSet must contain its own phenoData data frame
+#' @param outcomeName A character with the name of the target variable against wich compute differential expression / association / survival analysis. 
 #' @param combMethods Character vector with possible values: 'Fisher', 'Liptak', 'Tippett'. If more than one is specified, all will be used.
 #' @param numPerms Number of permutations.
 #' @param numCores Number of CPU cores to use.
+#' @param allCombinations Logical, if TRUE all combinations of omics datasets are considered. 
 #' @param verbose Logical, if set to TRUE omicsNPC prints out the step that it performs.
 #' @param functionGeneratingIndex Function generating the indices for randomly permuting the samples. If set to NULL (default value) omicsNPC uses the R's sample function to permute the samples in the datasets. 
-#' @param outcomeName The colname of the outcome of interest / experimental factor, as named in the dataMapping argument. If NULL, the last column of the dataMapping argument is assumed to be the outcome of interest.
-# TODO - TO REMOVE - Redundant with dataMapping. @param allCombinations Logical, if TRUE all combinations of omics datasets are considered. 
 #' @param dataWeights A vector specifying the weigth to give to each dataset. Note that sum(dataWeights) must be 1.
 #' @param returnPermPvalues Logical, should the p-values computed at each permutation being returned?
 #' @param ... Additional arguments to be passed to the user-defined functions
@@ -78,129 +80,48 @@
 #'                             combMethods = combMethods, numPerms = numPerms,
 #'                             numCores = numCores, verbose = verbose)}
 
+#defining the generic
 setGeneric(name="omicsNPC",
            def=function(dataInput,
-                        dataMapping,
+                        dataMapping = NULL,
                         dataTypes = rep('continuous', length(dataInput)),
+                        phenotypeData = NULL,
+                        outcomeName = NULL,
                         combMethods = c("Fisher", "Liptak", "Tippett"),
                         numPerms = 1000,
                         numCores = 1,
+                        allCombinations = FALSE,
                         verbose = FALSE,
                         functionGeneratingIndex = NULL,
-                        outcomeName = NULL,
-                        allCombinations = FALSE,
                         dataWeights = rep(1, length(dataInput))/length(dataInput),
                         returnPermPvalues = FALSE,
                         ...)
                {standardGeneric("omicsNPC")}
 )
 
-setMethod(
-    f="omicsNPC",
-    signature=signature(dataInput = "list", dataMapping = 'data.frame'),
-    definition=function(dataInput, dataMapping, dataTypes, combMethods, numPerms, 
-                        numCores, verbose, functionGeneratingIndex, outcomeName, 
-                        allCombinations, dataWeights, returnPermPvalues, ...){
-        
-      # Input check 
-
-      # checking the data in input
-      classNames <- sapply(dataInput, class)
-      testClass <- sapply(X = classNames, FUN = match.arg, choices = c('ExpressionSet'))
-      
-      #if no names for the datasets, create fake ones
-      if(is.null(names(dataInput))){
-        names(dataInput) <- paste('dataset', 1:length(dataInput), sep = "_")
-      }
-
-      # data types
-      if(class(dataTypes) == 'character'){
-        testDataTypes <- sapply(X = dataTypes, FUN = match.arg, choices = c('count', 'continuous')) 
-      }else{
-        if(class(dataTypes) != 'list'){
-          stop('dataTypes must be either a character vector or a list')
-        }else{
-          if(length(dataTypes) == 0 || class(dataTypes[[1]]) != 'function'){
-            stop('if dataTypes is a list it must contain functions')
-          }
-        }
-      }
-      
-      #weigths
-      if(sum(dataWeights) != 1){
-        stop('dataWeights must be a numeric vector such that sum(dataWeights) == 1')
-      }
-      
-      # Create input for internal omicsNPC 
-      
-      # extract matrices from ExpressionSet
-      dataMatrices <- lapply(dataInput, FUN = exprs)
-      if(is.null(names(dataInput))){
-        names(dataMatrices) <- paste('Dataset', 1:length(dataInput), sep = '_');
-      }else{
-        names(dataMatrices) <- names(dataInput);
-      }
-
-      # retrieving the whole design for each dataset
-      designs <- lapply(X = dataInput, FUN = pData)
-      if(is.null(names(dataInput))){
-        names(designs) <- paste('Dataset', 1:length(dataInput), sep = '_');
-      }else{
-        names(designs) <- names(dataInput);
-      }
-
-      # functions to analyze data
-      if(class(dataTypes) == 'character'){
-        functionsAnalyzingData <- vector('list', length(dataTypes));
-        for(i in 1:length(dataTypes)){
-          if(dataTypes[i] == 'continuous'){
-            functionsAnalyzingData[[i]] <- computeAssocContinuousData;
-          }else{
-            functionsAnalyzingData[[i]] <- computeAssocCountData;
-          }
-        }
-      }else{
-        functionsAnalyzingData <- dataTypes;
-      }
-      
-      # function to permute data
-      if(is.null(functionGeneratingIndex)){
-        functionGeneratingIndex <- generate_iid_data_index 
-      }
-      
-      # run omicsNPC 
-      output <- omicsNPC_internal(dataMatrices = dataMatrices, 
-                                  designs = designs,
-                                  dataMapping = dataMapping,
-                                  combMethods = combMethods,
-                                  functionsAnalyzingData = functionsAnalyzingData,
-                                  functionGeneratingIndex = functionGeneratingIndex,
-                                  outcomeName = outcomeName,
-                                  numPerms = numPerms,
-                                  numCores = numCores,
-                                  verbose = verbose,
-                                  allCombinations = allCombinations,
-                                  dataWeights = dataWeights,
-                                  returnPermPvalues = returnPermPvalues,
-                                  ...)
-
-      #returning the results
-      return(output)
-
-    }
-)
-
+#definition of the method
 setMethod(
   f="omicsNPC",
-  signature=signature(dataInput = "list", dataMapping = 'missing'),
-  definition=function(dataInput, dataMapping, dataTypes, combMethods, numPerms, numCores, verbose, functionGeneratingIndex, outcomeName, returnPermPvalues, ...){
+  signature=signature(dataInput = "list"),
+  definition=function(dataInput, dataMapping, dataTypes, phenotypeData, outcomeName,
+                      combMethods,numPerms, numCores, allCombinations, verbose,
+                      functionGeneratingIndex, dataWeights, returnPermPvalues, ...){
     
     # Input check 
     
-    # checking the data in input
-    if(class(dataInput) == 'list'){
-      classNames <- sapply(dataInput, class)
-      testClass <- sapply(X = classNames, FUN = match.arg, choices = c('ExpressionSet'))
+    # checking the dataInput
+    classNames <- sapply(dataInput, class)
+    testClass <- sapply(X = classNames, FUN = match.arg, 
+                        choices = c('ExpressionSet', 'matrix', 'data.frame'))
+  
+    #homogeneous data?
+    if(unique(classNames) > 1){
+      stop('Elements of dataInput must be either all ExpressionSets, or all data frames, or all matrices')
+    }
+    
+    #phenotype data
+    if((all(classNames == 'data.frame') || all(classNames == 'matrix')) && is.null(phenotypeData)){
+      stop('If dataInput does not contain ExpressionSet objects, you must provide phenotypeData')
     }
     
     #if no names for the datasets, create fake ones
@@ -215,7 +136,7 @@ setMethod(
       if(class(dataTypes) != 'list'){
         stop('dataTypes must be either a character vector or a list')
       }else{
-        if(length(datatypes) == 0 || class(dataTypes[[1]]) != 'function'){
+        if(length(dataTypes) == 0 || class(dataTypes[[1]]) != 'function'){
           stop('if dataTypes is a list it must contain functions')
         }
       }
@@ -226,23 +147,43 @@ setMethod(
       stop('dataWeights must be a numeric vector such that sum(dataWeights) == 1')
     }
     
-    #creating the data mapping based on the rownames 
-    #(we assume the all datasets have the same rownames encoding, e.g., probeset ids of the same platform)
-    mappings <- vector('list', length(dataInput));
-    for(i in 1:length(dataInput)){
-      mappings[[i]] <- data.frame(id = rownames(dataInput[[i]]),
-                                  reference = rownames(dataInput[[i]]));
+    #data mapping
+    if(dataMapping == NULL){
+      #creating the data mapping based on the rownames 
+      #(we assume the all datasets have the same rownames encoding, e.g., probeset ids of the same platform)
+      mappings <- vector('list', length(dataInput));
+      for(i in 1:length(dataInput)){
+        mappings[[i]] <- data.frame(id = rownames(dataInput[[i]]),
+                                    reference = rownames(dataInput[[i]]));
+      }
+      dataMapping <- combiningMappings(mappings = mappings, reference = 'reference', retainAll = );
     }
-    dataMapping <- combiningMappings(mappings = mappings, reference = 'reference', retainAll = TRUE);
     
     # Create input for internal omicsNPC 
     
-    # extract matrices from ExpressionSet
-    dataMatrices <- lapply(dataInput, FUN = exprs)
-    if(is.null(names(dataInput))){
-      names(dataMatrices) <- paste('Dataset', 1:length(dataInput), sep = '_');
-    }else{
-      names(dataMatrices) <- names(dataInput);
+    # extract matrices from ExpressionSet, if necessary
+    if(all(classNames == 'ExpressionSet')){
+      dataMatrices <- lapply(dataInput, FUN = exprs)
+      if(is.null(names(dataInput))){
+        names(dataMatrices) <- paste('Dataset', 1:length(dataInput), sep = '_');
+      }else{
+        names(dataMatrices) <- names(dataInput);
+      }
+    }
+
+    # or from data frames, if necessary
+    if(all(classNames == 'data.frame')){
+      dataMatrices <- lapply(dataInput, FUN = as.matrix)
+      if(is.null(names(dataInput))){
+        names(dataMatrices) <- paste('Dataset', 1:length(dataInput), sep = '_');
+      }else{
+        names(dataMatrices) <- names(dataInput);
+      }
+    }
+    
+    # or from matrices :-)
+    if(all(classNames == 'matrix')){
+      dataMatrices <- dataInput;
     }
     
     # retrieving the whole design for each dataset
@@ -292,4 +233,5 @@ setMethod(
     return(output)
     
   }
+  
 )
