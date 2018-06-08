@@ -124,6 +124,20 @@ setMethod(
       stop('If dataInput does not contain ExpressionSet objects, you must provide phenotypeData')
     }
     
+    #samples and measurements' names
+    allSampleNames <- c();
+    for(i in 1:length(dataInput)){
+      sampleNames <- colnames(dataInput[[i]])
+      if(is.null(sampleNames)){
+        stop('Each element in dataInput must have column names')
+      }
+      allSampleNames <- c(allSampleNames, sampleNames)
+      measurementNames <- rownames(dataInput[[i]])
+      if(is.null(measurementNames)){
+        stop('Each element in dataInput must have row names')
+      }
+    }
+    
     #if no names for the datasets, create fake ones
     if(is.null(names(dataInput))){
       names(dataInput) <- paste('dataset', 1:length(dataInput), sep = "_")
@@ -156,7 +170,7 @@ setMethod(
         mappings[[i]] <- data.frame(id = rownames(dataInput[[i]]),
                                     reference = rownames(dataInput[[i]]));
       }
-      dataMapping <- combiningMappings(mappings = mappings, reference = 'reference', retainAll = );
+      dataMapping <- combiningMappings(mappings = mappings, reference = 'reference', retainAll = FALSE);
     }
     
     # Create input for internal omicsNPC 
@@ -164,21 +178,13 @@ setMethod(
     # extract matrices from ExpressionSet, if necessary
     if(all(classNames == 'ExpressionSet')){
       dataMatrices <- lapply(dataInput, FUN = exprs)
-      if(is.null(names(dataInput))){
-        names(dataMatrices) <- paste('Dataset', 1:length(dataInput), sep = '_');
-      }else{
-        names(dataMatrices) <- names(dataInput);
-      }
+      names(dataMatrices) <- names(dataInput);
     }
 
     # or from data frames, if necessary
     if(all(classNames == 'data.frame')){
       dataMatrices <- lapply(dataInput, FUN = as.matrix)
-      if(is.null(names(dataInput))){
-        names(dataMatrices) <- paste('Dataset', 1:length(dataInput), sep = '_');
-      }else{
-        names(dataMatrices) <- names(dataInput);
-      }
+      names(dataMatrices) <- names(dataInput);
     }
     
     # or from matrices :-)
@@ -186,12 +192,40 @@ setMethod(
       dataMatrices <- dataInput;
     }
     
-    # retrieving the whole design for each dataset
-    designs <- lapply(X = dataInput, FUN = pData)
-    if(is.null(names(dataInput))){
-      names(designs) <- paste('Dataset', 1:length(dataInput), sep = '_');
-    }else{
+    # retrieving the design for each dataset
+    if(all(classNames == 'ExpressionSet')){
+      designs <- lapply(X = dataInput, FUN = pData)
       names(designs) <- names(dataInput);
+    }else{
+      if(is.null(phenotypeData)){
+        stop('phenotypeData is necessary if dataInput does not contain ExpressionSet objects')
+      }
+      
+      #checks on phenotypeData if it is a vector
+      if(is.vector(phenotypeData)){
+        if(is.null(names(phenotypeData)) || 
+           length(intersect(names(phenotypeData), allSampleNames)) == 0){
+          stop('if phenotypeData is a vector, it must be named with the sample names')
+        }
+        #making phenotype data a data frame
+        phenoNames <- names(phenotypeData)
+        phenotypeData <- data.frame(phenotypeData, nrow = length(phenotypeData), ncol = 1)
+        rownames(phenotypeData) <- phenoNames
+        colnames(phenoNames) <- 'outcome'
+      }
+      
+      #does phenotypeData contain the correct sample names?
+      if(length(intersect(rownames(phenotypeData), allSampleNames)) == 0){
+        stop('phenotypeData rows must be the named after the samples')
+      }
+      
+      #extracting each single design
+      designs <- vector('list', length(dataInput));
+      names(designs) <- names(dataInput);
+      for(i in 1:length(dataInput)){
+        designs[[i]] <- phenotypeData[colnames(dataInput[[i]]), ]
+      }
+      
     }
     
     # functions to analyze data

@@ -92,7 +92,7 @@ computeAssocContinuousData <- function(dataMatrix, design, outcomeName, useVoom 
     
     #returning statistics
     names(statistics) <- rownames(results);
-    return(statistics);  
+    return(list(statistics = statistics, results = results));  
     
   }else{
     
@@ -125,21 +125,23 @@ computeAssocContinuousData <- function(dataMatrix, design, outcomeName, useVoom 
         designX <- cbind(design, x); 
       }
       
-      #wald p-value
-      if(returnPValues){
-        summary(coxph(survOutcome ~ ., data = designX))$coefficients['x', 'Pr(>|z|)']
-      }else{
-        summary(coxph(survOutcome ~ ., data = designX))$coefficients['x', 'z']
-      }
+      #return
+      summary(coxph(survOutcome ~ ., data = designX))$coefficients['x', ]
       
     }
     
     #retrieving the statistics
-    statistics <- apply(dataMatrix, 1, modelFunction, design, outcomeId);
+    results <-t(apply(dataMatrix, 1, modelFunction, design, outcomeId));
+    if(returnPValues){
+      statistics <- results[, 'Pr(>|z|)']
+    }else{
+      statistics <- results[, 'z']
+    }
     
     #returning statistics (log transformed p-values)
     names(statistics) <- rownames(dataMatrix);
-    return(statistics)
+    rownames(results) <- rownames(dataMatrix);
+    return(list(statistics = statistics, results = results));  
     
   }
   
