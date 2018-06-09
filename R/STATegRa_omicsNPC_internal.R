@@ -3,6 +3,7 @@
 # See the omicsNPC function instead.
 
 #' @importFrom utils combn
+#' @importFrom data.table frank
 omicsNPC_internal <- function(dataMatrices, 
                               designs, 
                               dataMapping,
@@ -33,7 +34,9 @@ omicsNPC_internal <- function(dataMatrices,
   parallelAvailable <- FALSE;
   
   # computing the statistics on the original data
-  stats0 <- computeAssociation(dataMatrices = dataMatrices, designs = designs, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName, ...)
+  tmp <- computeAssociation(dataMatrices = dataMatrices, designs = designs, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName, ...)
+  stats0 <- tmp$stats
+  results0 <- tmp$results
   #system.time(stats0 <- computeAssociation(dataMatrices = dataMatrices, designs = designs, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName))
   
   #information
@@ -50,15 +53,12 @@ omicsNPC_internal <- function(dataMatrices,
   # set function for permutation
   executePermutation <- function(...){
       
-    #save(designs, outcomeName,  file = 'E:\\Dropbox (Personal)\\inprogress\\TwoPagesBionformatics\\3_newAnalysis_M\\safe1.RData')
-    
     # permute designs
     permDesigns <- permutingData(designs = designs, functionGeneratingIndex = functionGeneratingIndex, outcomeName = outcomeName, ...)
 
-    #save(designs, outcomeName, permDesigns, dataMapping, dataMatrices,  file = 'E:\\Dropbox (Personal)\\inprogress\\TwoPagesBionformatics\\3_newAnalysis_M\\safe2.RData')
-
     # recompute pvalues
     tempRes <- computeAssociation(dataMatrices, designs = permDesigns, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName, ...)
+    tempRes <- tempRes$stats
     
     #return
     return(tempRes)
@@ -255,9 +255,13 @@ omicsNPC_internal <- function(dataMatrices,
       names(pvaluesNPC)[j] <- paste(datasetsNames[combinations[[j]]], collapse = '_');
       names(dataMappings)[j] <- names(pvaluesNPC)[j];
       
+      #adding data mapping to pvaluesNPC
+      pvaluesNPC[[j]] <- cbind(dataMappings[[j]], pvaluesNPC[[j]])
+      rownames(pvaluesNPC[[j]]) <- NULL;
+      
     }
-      #not all combinations
-  }else{
+    
+  }else{#not all combinations
     
     #initializing
     statsNPC <- array(dim = c(numMeasurements, numCombMethods, numPerms + 1), 
@@ -314,14 +318,26 @@ omicsNPC_internal <- function(dataMatrices,
 
   }
   
-  #creating the object to return
-  toReturn <- list(stats0 = stats0, pvalues0 = pvalues0, pvaluesNPC = pvaluesNPC);
+  #adding the permutation p-values to the limma results
+  for(i in 1:length(dataMatrices)){
+    P.Value.Perm <- pvalues0[, i]
+    adj.P.Val.Perm <- p.adjust(P.Value.Perm, method = 'fdr')
+    results0[[i]] <- cbind(results0[[i]]$results, P.Value.Perm, adj.P.Val.Perm)
+  }
+  
+  #adding data mapping to pvaluesNPC
+  pvaluesNPC <- cbind(dataMapping[, 1:length(dataMatrices)], pvaluesNPC)
+  rownames(pvaluesNPC) <- NULL;
+  
+  #returning
+  toReturn <- results0;
+  toReturn$pvaluesNPC <- pvaluesNPC;
   if(returnPermPvalues){
     toReturn$pvaluesPerm = pvaluesPerm;
   }
-  if(allCombinations){
-    toReturn$dataMappings <- dataMappings;
-  }
+  # if(allCombinations){
+  #   toReturn$dataMappings <- dataMappings;
+  # }
   
   return(toReturn)
 
@@ -336,7 +352,9 @@ computeAssociation <- function(dataMatrices, designs, dataMapping, functionsAnal
   results <- vector('list', length(dataMatrices));
   for(j in 1:length(dataMatrices)){
     results[[j]] <- functionsAnalyzingData[[j]](dataMatrices[[j]], designs[[j]], outcomeName, ...);
+    #results[[j]] <- functionsAnalyzingData[[j]](dataMatrices[[j]], designs[[j]], outcomeName);
   }
+  names(results) <- names(dataMatrices);
   
   #Return the results as a matrix: we do now assume the same number of results for each dataset; only a coherent naming
   
@@ -346,12 +364,12 @@ computeAssociation <- function(dataMatrices, designs, dataMapping, functionsAnal
   
   #filling the matrix
   for(j in 1:length(results)){
-    toReturn[ , j] <- results[[j]][ as.character(dataMapping[[j]]) ];
+    toReturn[ , j] <- results[[j]]$statistics[as.character(dataMapping[[j]])];
   }
   rownames(toReturn) <- rownames(dataMapping);
   
   #return
-  return(toReturn)
+  return(list(stats = toReturn, results = results))
   
 }
 
@@ -433,7 +451,7 @@ computePvaluesVect <- function(statsVect){
   #for example, by changing the sign of negative statistics and putting to zero the positive ones, 
   #or by returning the -log(desiredOneTailedPvalue)
   #THIS IS NOT CHANGED: we take the absolute value of the statistics! See above
-  numLargerValues <- numStatistics - data.table::frank(statsVect, na.last = "keep", ties.method = "min");
+  numLargerValues <- numStatistics - frank(statsVect, na.last = "keep", ties.method = "min");
   
   #correction for avoiding zero p-values
   pvaluesVect <- (numLargerValues + 1)/(numStatistics);

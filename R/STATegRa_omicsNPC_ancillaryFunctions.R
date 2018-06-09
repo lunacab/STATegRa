@@ -10,8 +10,10 @@ generate_iid_data_index <- function(design){
 computeAssocContinuousData <- function(dataMatrix, design, outcomeName, useVoom = FALSE, returnPValues = FALSE, ...){
   
   #save(list = ls(), file= 'safety.RData')
+  #dataMatrix <- dataMatrices[[1]]
+  #design <- designs[[1]]
   
-  #requirments
+  #requirements
   require(limma);
   require(survival);
   require(edgeR)

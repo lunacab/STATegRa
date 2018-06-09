@@ -115,7 +115,7 @@ setMethod(
                         choices = c('ExpressionSet', 'matrix', 'data.frame'))
   
     #homogeneous data?
-    if(unique(classNames) > 1){
+    if(length(unique(classNames)) > 1){
       stop('Elements of dataInput must be either all ExpressionSets, or all data frames, or all matrices')
     }
     
@@ -162,7 +162,7 @@ setMethod(
     }
     
     #data mapping
-    if(dataMapping == NULL){
+    if(is.null(dataMapping)){
       #creating the data mapping based on the rownames 
       #(we assume the all datasets have the same rownames encoding, e.g., probeset ids of the same platform)
       mappings <- vector('list', length(dataInput));
@@ -218,6 +218,9 @@ setMethod(
       if(length(intersect(rownames(phenotypeData), allSampleNames)) == 0){
         stop('phenotypeData rows must be the named after the samples')
       }
+    
+      #ensuring phenotypeData is a data frame
+      phenotypeData <- as.data.frame(phenotypeData)
       
       #extracting each single design
       designs <- vector('list', length(dataInput));
