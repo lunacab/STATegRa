@@ -25,28 +25,21 @@ omicsPC_internal <- function(dataMatrices,
   numDataMatrices <- length(dataMatrices)
   numCombMethods <- length(combMethods);
   
-  # computing the statistics on the original data
-  stats0 <- computeAssociation(dataMatrices = dataMatrices, designs = designs, 
+  # computing the p-values on the original data
+  tmp <- computeAssociation(dataMatrices = dataMatrices, designs = designs, 
                                dataMapping = dataMapping, 
                                functionsAnalyzingData = functionsAnalyzingData, 
                                outcomeName = outcomeName,
-                               returnPValues = FALSE, ...)
-  # system.time(stats0 <- computeAssociation(dataMatrices = dataMatrices, designs = designs, 
-  #                                          dataMapping = dataMapping, 
-  #                                          functionsAnalyzingData = functionsAnalyzingData, 
-  #                                          outcomeName = outcomeName,
-  #                                          returnPValues = FALSE))
+                               returnPValues = TRUE, ...)
+  pvalues0 <- tmp$stats
+  results0 <- tmp$results
+  for(i in 1:length(dataMatrices)){
+    results0[[i]] <- results0[[i]]$results;
+  }
   
   #information
-  measurements <- dimnames(stats0)[[1]];
+  measurements <- dimnames(pvalues0)[[1]];
   numMeasurements <- length(measurements);
-  
-  # computing the p-values on the original data
-  pvalues0 <- computeAssociation(dataMatrices = dataMatrices, designs = designs, 
-                                 dataMapping = dataMapping, 
-                                 functionsAnalyzingData = functionsAnalyzingData, 
-                                 outcomeName = outcomeName,
-                                 returnPValues = TRUE, ...)
   
   #### STEP 2 Compute PC p-values ####
   
@@ -68,8 +61,9 @@ omicsPC_internal <- function(dataMatrices,
     #initializing 
     dataMappings <- vector('list', numCombinations);
     pvaluesPC <- vector('list', numCombinations);
+    adjPvaluesPC <- vector('list', numCombinations);
     
-    #for each combination, let's compute the NPC stats and p-values
+    #for each combination, let's compute the PC stats and p-values
     for(j in 1:numCombinations){
       
       #combining the pvalues. Here we choose which data matrices to combine
@@ -82,17 +76,26 @@ omicsPC_internal <- function(dataMatrices,
       #creating the data mapping for the combination at hand
       dataMappingTmp <- dataMapping[, combinations[[j]]];
       toKeep <- which(!duplicated(dataMappingTmp) & !apply(dataMappingTmp, 1, function(x){all(is.na(x))}))
-      dataMappingTmp <- cbind(dataMappingTmp[toKeep, ], dataMapping[toKeep, ncol(dataMapping)]) #adding the reference
-      colnames(dataMappingTmp)[ncol(dataMappingTmp)] <- colnames(dataMapping)[ncol(dataMapping)]
+      dataMappingTmp <- dataMappingTmp[toKeep, ]
       pvaluesPCTemp <- pvaluesPCTemp[toKeep, ]
-      rownames(dataMappingTmp) <- apply(dataMappingTmp, 1, function(x){paste(x, collapse = ':')});
-      rownames(pvaluesPCTemp) <- rownames(dataMappingTmp);
+      rownames(dataMappingTmp) <- NULL
+      rownames(pvaluesPCTemp) <- NULL
       
       #storing and naming the results
       pvaluesPC[[j]] <- pvaluesPCTemp;
       dataMappings[[j]] <- dataMappingTmp;
       names(pvaluesPC)[j] <- paste(datasetsNames[combinations[[j]]], collapse = '_');
       names(dataMappings)[j] <- names(pvaluesPC)[j];
+      
+      #adjusted pvalues
+      adjPvaluesPC[[j]] <- apply(pvaluesPC[[j]], 2, function(x){p.adjust(x, method = 'fdr')})
+      names(adjPvaluesPC)[j] <- paste(datasetsNames[combinations[[j]]], collapse = '_');
+      
+      #adding data mapping to pvaluesPC
+      pvaluesPC[[j]] <- cbind(dataMappings[[j]], pvaluesPC[[j]])
+      adjPvaluesPC[[j]] <- cbind(dataMappings[[j]], adjPvaluesPC[[j]])
+      rownames(pvaluesPC[[j]]) <- NULL;
+      rownames(adjPvaluesPC[[j]]) <- NULL;
       
     }
       
@@ -105,19 +108,22 @@ omicsPC_internal <- function(dataMatrices,
     for(i in 1:numCombMethods){
       pvaluesPC[ , i] <-  combiningPvaluesParametric(pvalues = pvalues0, method = combMethods[i])
     }
+    
+    #adjusting pvalues
+    adjPvaluesPC <- apply(pvaluesPC, 2, function(x){p.adjust(x, method = 'fdr')})
+    
+    #adding data mapping to pvaluesPC
+    pvaluesPC <- cbind(dataMapping[, 1:length(dataMatrices)], pvaluesPC)
+    adjPvaluesPC <- cbind(dataMapping[, 1:length(dataMatrices)], adjPvaluesPC)
 
   }
   
   #creating the object to return
-  #Note: for the moment is only a list. It will be a proper object in a next release
-  #pvaluesPC: either a matrix (allCombinations = FALSE) or a list (allCombinations = TRUE)
-  if(allCombinations){
-    toReturn <- list(stats0 = stats0, pvalues0 = pvalues0, 
-                     pvaluesPC = pvaluesPC, dataMappings = dataMappings);
-  }else{
-    toReturn <- list(stats0 = stats0, pvalues0 = pvalues0, pvaluesPC = pvaluesPC);
-  }
+  toReturn <- results0;
+  toReturn$pvaluesPC <- pvaluesPC;
+  toReturn$adjPvaluesPC <- adjPvaluesPC;
   
+  #returning
   return(toReturn)
 
 }

@@ -20,10 +20,10 @@
 #' The Liptak function returns findings which are supported by most modalities.
 #' The Fisher function has an intermediate behavior between those of Tippett and Liptak.
 #' @usage omicsNPC(dataInput, dataMapping = NULL, dataTypes = rep('continuous', length(dataInput)), 
-#'                phenotypeData = NULL, targetName = NULL, 
+#'                phenotypeData = NULL, outcomeName = NULL, 
 #'                combMethods = c("Fisher", "Liptak", "Tippett"), numPerms = 1000, 
 #'                numCores = 1, verbose = FALSE, functionGeneratingIndex = NULL, 
-#'                outcomeName = NULL, allCombinations = FALSE, 
+#'                allCombinations = FALSE, 
 #'                dataWeights = rep(1, length(dataInput))/length(dataInput), 
 #'                returnPermPvalues = FALSE, ...)
 #'
@@ -266,20 +266,6 @@ setMethod(
                                 returnPermPvalues = returnPermPvalues,
                                 ...)
 
-    # output <- omicsNPC_internal(dataMatrices = dataMatrices,
-    #                             designs = designs,
-    #                             dataMapping = dataMapping,
-    #                             combMethods = combMethods,
-    #                             functionsAnalyzingData = functionsAnalyzingData,
-    #                             functionGeneratingIndex = functionGeneratingIndex,
-    #                             outcomeName = outcomeName,
-    #                             numPerms = numPerms,
-    #                             numCores = numCores,
-    #                             verbose = verbose,
-    #                             allCombinations = allCombinations,
-    #                             dataWeights = dataWeights,
-    #                             returnPermPvalues = returnPermPvalues)
-    
     #returning the results
     return(output)
     

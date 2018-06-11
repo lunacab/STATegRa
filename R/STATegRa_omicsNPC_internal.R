@@ -34,7 +34,10 @@ omicsNPC_internal <- function(dataMatrices,
   parallelAvailable <- FALSE;
   
   # computing the statistics on the original data
-  tmp <- computeAssociation(dataMatrices = dataMatrices, designs = designs, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName, ...)
+  tmp <- computeAssociation(dataMatrices = dataMatrices, designs = designs, 
+                            dataMapping = dataMapping, 
+                            functionsAnalyzingData = functionsAnalyzingData, 
+                            outcomeName = outcomeName, ...)
   #system.time(tmp <- computeAssociation(dataMatrices = dataMatrices, designs = designs, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName))
   stats0 <- tmp$stats
   results0 <- tmp$results
