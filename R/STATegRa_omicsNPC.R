@@ -251,7 +251,7 @@ setMethod(
     }
     
     # run omicsNPC 
-    output <- omicsNPC_internal(dataMatrices = dataMatrices, 
+    output <- omicsNPC_internal(dataMatrices = dataMatrices,
                                 designs = designs,
                                 dataMapping = dataMapping,
                                 combMethods = combMethods,
@@ -265,6 +265,20 @@ setMethod(
                                 dataWeights = dataWeights,
                                 returnPermPvalues = returnPermPvalues,
                                 ...)
+
+    # output <- omicsNPC_internal(dataMatrices = dataMatrices,
+    #                             designs = designs,
+    #                             dataMapping = dataMapping,
+    #                             combMethods = combMethods,
+    #                             functionsAnalyzingData = functionsAnalyzingData,
+    #                             functionGeneratingIndex = functionGeneratingIndex,
+    #                             outcomeName = outcomeName,
+    #                             numPerms = numPerms,
+    #                             numCores = numCores,
+    #                             verbose = verbose,
+    #                             allCombinations = allCombinations,
+    #                             dataWeights = dataWeights,
+    #                             returnPermPvalues = returnPermPvalues)
     
     #returning the results
     return(output)

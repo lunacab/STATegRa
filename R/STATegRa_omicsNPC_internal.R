@@ -35,9 +35,9 @@ omicsNPC_internal <- function(dataMatrices,
   
   # computing the statistics on the original data
   tmp <- computeAssociation(dataMatrices = dataMatrices, designs = designs, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName, ...)
+  #system.time(tmp <- computeAssociation(dataMatrices = dataMatrices, designs = designs, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName))
   stats0 <- tmp$stats
   results0 <- tmp$results
-  #system.time(stats0 <- computeAssociation(dataMatrices = dataMatrices, designs = designs, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName))
   
   #information
   measurements <- dimnames(stats0)[[1]];
@@ -120,6 +120,7 @@ omicsNPC_internal <- function(dataMatrices,
     #running serially
     statsPerm <- foreach(i = 1:numPerms) %do% {
       tryCatch({executePermutation(...)}, 
+      #tryCatch({executePermutation()}, 
                error = function(e){
                  tempRes <- matrix(NA, dim(dataMapping)[1], dim(dataMapping)[2] - 1);
                  rownames(tempRes) <- rownames(dataMapping);
@@ -200,8 +201,6 @@ omicsNPC_internal <- function(dataMatrices,
         #combining the pvalues. Here we choose which data matrice to combine
         for(i in 1:numCombMethods){
           statsNPC[ , i, ] <- foreach(k = 1:dim(pvaluesPerm)[3], .combine = 'cbind') %dopar% {
-            source('../../omicsNPC/code/stategra/R/STATegRa_omicsNPC_internal.R');
-            source('../../omicsNPC/code/stategra/R/STATegRa_omicsNPC_ancillaryFunctions.R');
             combiningPvalues(as.matrix(pvaluesPerm[ , combinations[[j]], k]), method = combMethods[i], dataWeights = dataWeights);
           }
         }
@@ -235,8 +234,9 @@ omicsNPC_internal <- function(dataMatrices,
       #creating the data mapping for the combination at hand
       dataMappingTmp <- dataMapping[, combinations[[j]]];
       toKeep <- !duplicated(dataMappingTmp) & !apply(dataMappingTmp, 1, function(x){all(is.na(x))})
-      dataMappingTmp <- cbind(dataMappingTmp[toKeep, ], dataMapping[toKeep, ncol(dataMapping)]) #adding the reference
-      rownames(dataMappingTmp) <- apply(dataMappingTmp, 1, function(x){paste(x, collapse = ':')});
+      # dataMappingTmp <- cbind(dataMappingTmp[toKeep, ], dataMapping[toKeep, ncol(dataMapping)]) #adding the reference
+      # rownames(dataMappingTmp) <- apply(dataMappingTmp, 1, function(x){paste(x, collapse = ':')});
+      dataMappingTmp <- dataMappingTmp[toKeep, ]
       
       #keeping only the relevant pvalues
       if(!returnPermPvalues){
@@ -315,6 +315,10 @@ omicsNPC_internal <- function(dataMatrices,
                             ncol = numCombMethods, 
                             dimnames = dimnames(pvaluesNPC)[1:2])
     }
+    
+    #adding data mapping to pvaluesNPC
+    pvaluesNPC <- cbind(dataMapping[, 1:length(dataMatrices)], pvaluesNPC)
+    rownames(pvaluesNPC) <- NULL;
 
   }
   
@@ -325,20 +329,14 @@ omicsNPC_internal <- function(dataMatrices,
     results0[[i]] <- cbind(results0[[i]]$results, P.Value.Perm, adj.P.Val.Perm)
   }
   
-  #adding data mapping to pvaluesNPC
-  pvaluesNPC <- cbind(dataMapping[, 1:length(dataMatrices)], pvaluesNPC)
-  rownames(pvaluesNPC) <- NULL;
-  
   #returning
   toReturn <- results0;
   toReturn$pvaluesNPC <- pvaluesNPC;
   if(returnPermPvalues){
     toReturn$pvaluesPerm = pvaluesPerm;
   }
-  # if(allCombinations){
-  #   toReturn$dataMappings <- dataMappings;
-  # }
   
+  #return
   return(toReturn)
 
 }
