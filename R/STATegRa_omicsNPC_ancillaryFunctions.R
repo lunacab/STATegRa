@@ -93,8 +93,8 @@ computeAssocContinuousData <- function(dataMatrix, design, outcomeName, useVoom 
     }
     
     #returning statistics
-    names(statistics) <- rownames(results);
-    return(list(statistics = statistics, results = results));  
+    names(statistics) <- rownames(dataMatrix);
+    return(list(statistics = statistics, fullMatrix = results));  
     
   }else{
     
@@ -143,7 +143,7 @@ computeAssocContinuousData <- function(dataMatrix, design, outcomeName, useVoom 
     #returning statistics (log transformed p-values)
     names(statistics) <- rownames(dataMatrix);
     rownames(results) <- rownames(dataMatrix);
-    return(list(statistics = statistics, results = results));  
+    return(list(statistics = statistics, fullMatrix = results));  
     
   }
   
@@ -155,3 +155,49 @@ computeAssocCountData <- function(dataMatrix, design, outcomeName, ...){
   computeAssocContinuousData(dataMatrix, design, outcomeName, useVoom = TRUE, ...)
   
 }
+
+# Information of function #
+# Calculate FDR based on statistics
+# Citation: A nonparametric approach for identifying differential expression in RNA-Seq data, Tibshirani
+# Function to use - Small modifications in relation to publication
+# No 0s are allowed in Rs - the one 0 that is produced we turn it to 1
+FDR_calculation <- function(statistics){
+  # statistics: matrix
+  # columns: statistics, first column initial statistics, 
+  #          other columns statistics created during permutations
+  # rows: genes    
+  statistics <- abs(statistics)
+  num_perm <- ncol(statistics) - 1
+  
+  # Calculating Rs
+  init_stats = statistics[,1]
+  
+  # Calculating tesing Rs
+  init_stats_rank <- (frank(-init_stats, ties.method = 'min') - 1)
+  Rs <- (frank(-init_stats, ties.method = 'min') - 1)
+  Rs[Rs == 0] <- 1
+  
+  # Calculate Vs
+  perm_stats <- as.numeric(statistics[,2: (num_perm + 1)])
+  
+  # Calculate testing Vs
+  all_stat_rank <- (data.table::frank(-c(init_stats, perm_stats), ties.method = 'min') - 1)
+  Vs <- (all_stat_rank[1:length(init_stats_rank)] - init_stats_rank) / num_perm
+  
+  # Calculate pi0
+  q <- median(perm_stats)
+  pi0 <- (2*sum(init_stats <= q)) / length(init_stats)
+  
+  # FDRs
+  FDR <- pi0*Vs/Rs
+  
+  # add names
+  names(FDR) <- rownames(statistics)
+  
+  #correcting for FDR > 1
+  FDR[FDR > 1] <- 1;
+  
+  # return object
+  return(FDR)
+}
+

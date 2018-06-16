@@ -52,15 +52,23 @@ omicsNPC_internal <- function(dataMatrices,
   if(verbose){
       message("Building NULL distributions by permuting data")
   }
-
+  
+  #restricting the data matrices to the elements in mapping
+  restrictedDataMatrices <- dataMatrices
+  for(i in 1:length(dataMatrices)){
+    restrictedDataMatrices[[i]] <- dataMatrices[[i]][unique(dataMapping[ , i]), , drop = FALSE]
+  }
+  
   # set function for permutation
   executePermutation <- function(...){
       
     # permute designs
     permDesigns <- permutingData(designs = designs, functionGeneratingIndex = functionGeneratingIndex, outcomeName = outcomeName, ...)
+    #permDesigns <- permutingData(designs = designs, functionGeneratingIndex = functionGeneratingIndex, outcomeName = outcomeName)
 
     # recompute pvalues
-    tempRes <- computeAssociation(dataMatrices, designs = permDesigns, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName, ...)
+    tempRes <- computeAssociation(restrictedDataMatrices, designs = permDesigns, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName, ...)
+    #tempRes <- computeAssociation(restrictedDataMatrices, designs = permDesigns, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName)
     tempRes <- tempRes$stats
     
     #return
@@ -81,18 +89,19 @@ omicsNPC_internal <- function(dataMatrices,
         doSNOW::registerDoSNOW(cl)
     
         # compute DE expression
-        statsPerm <- foreach(i = 1:numPerms, .packages = c('limma', 'survival')) %dopar% {
-          tryCatch({executePermutation(...)}, 
-                   error = function(e){
-                     tempRes <- matrix(NA, dim(dataMapping)[1], dim(dataMapping)[2] - 1);
-                     rownames(tempRes) <- rownames(dataMapping);
-                     colnames(tempRes) <- colnames(dataMapping)[1:(dim(dataMapping)[2] - 1)];
-                     return(tempRes)
+        statsPerm <- foreach(i = 1:numPerms, .packages = c('limma', 'survival'), 
+                             .export = c('combiningPvalues', 'permutingData', 'computeAssociation')) %dopar% {
+          tryCatch({executePermutation(...)},
+          #tryCatch({executePermutation()}, 
+                     error = function(e){
+                       tempRes <- matrix(NA, dim(dataMapping)[1], dim(dataMapping)[2] - 1);
+                       rownames(tempRes) <- rownames(dataMapping);
+                       colnames(tempRes) <- colnames(dataMapping)[1:(dim(dataMapping)[2] - 1)];
+                       return(tempRes)
                      }
-                   )
+                  )
          
-          }
-        #system.time(statsPerm <- foreach(i = 1:numPerms, .packages = c('foreach', 'limma', 'survival')) %dopar% {executePermutation()})
+        }
         
         #stopping the cluster
         parallel::stopCluster(cl)
@@ -159,10 +168,13 @@ omicsNPC_internal <- function(dataMatrices,
   pvaluesPerm <- aperm(pvaluesPerm, c(2, 3, 1)) # magic numbers!
   
   #taking the partial p-values
-  pvalues0 <- matrix(pvaluesPerm[ , , 1],
-                       nrow = numMeasurements, 
-                       ncol = numDataMatrices, 
-                       dimnames = dimnames(pvaluesPerm)[1:2]);
+  # pvalues0 <- matrix(pvaluesPerm[ , , 1],
+  #                      nrow = numMeasurements, 
+  #                      ncol = numDataMatrices, 
+  #                      dimnames = dimnames(pvaluesPerm)[1:2]);
+  
+  #computing the FDR for the permutation p-values
+  #fdr0 <- apply(statsPerm, 2, FDR_calculation)
   
   #### STEP 4 Compute NPC p-values ####
   
@@ -184,6 +196,7 @@ omicsNPC_internal <- function(dataMatrices,
     #initializing 
     dataMappings <- vector('list', numCombinations);
     pvaluesNPC <- vector('list', numCombinations);
+    fdrNPC <- vector('list', numCombinations);
     
     #for each combination, let's compute the NPC stats and p-values
     for(j in 1:numCombinations){
@@ -203,13 +216,14 @@ omicsNPC_internal <- function(dataMatrices,
         
         #combining the pvalues. Here we choose which data matrice to combine
         for(i in 1:numCombMethods){
-          statsNPC[ , i, ] <- foreach(k = 1:dim(pvaluesPerm)[3], .combine = 'cbind') %dopar% {
+          statsNPC[ , i, ] <- foreach(k = 1:dim(pvaluesPerm)[3], .combine = 'cbind',
+                                      .export = c('combiningPvalues', 'permutingData', 'computeAssociation')) %dopar% {
             combiningPvalues(as.matrix(pvaluesPerm[ , combinations[[j]], k]), method = combMethods[i], dataWeights = dataWeights);
           }
         }
         
         #closing the cluster
-        stopCluster(cl)
+        parallel::stopCluster(cl)
         
       }else{
         
@@ -257,10 +271,14 @@ omicsNPC_internal <- function(dataMatrices,
       dataMappings[[j]] <- dataMappingTmp;
       names(pvaluesNPC)[j] <- paste(datasetsNames[combinations[[j]]], collapse = '_');
       names(dataMappings)[j] <- names(pvaluesNPC)[j];
+      fdrNPC[[j]] <- apply(statsNPC, 2, FDR_calculation)
+      names(fdrNPC)[j] <- names(pvaluesNPC)[j];
       
-      #adding data mapping to pvaluesNPC
+      #adding data mapping to pvaluesNPC and fdrNPC
       pvaluesNPC[[j]] <- cbind(dataMappings[[j]], pvaluesNPC[[j]])
       rownames(pvaluesNPC[[j]]) <- NULL;
+      fdrNPC[[j]] <- cbind(dataMappings[[j]], fdrNPC[[j]])
+      rownames(fdrNPC[[j]]) <- NULL;
       
     }
     
@@ -280,13 +298,14 @@ omicsNPC_internal <- function(dataMatrices,
       doSNOW::registerDoSNOW(cl)   
       
       for(i in 1:numCombMethods){
-        statsNPC[ , i, ] <- foreach(k = 1:dim(pvaluesPerm)[3], .combine = 'cbind') %dopar% {
+        statsNPC[ , i, ] <- foreach(k = 1:dim(pvaluesPerm)[3], .combine = 'cbind', 
+                                    .export = c('combiningPvalues', 'permutingData', 'computeAssociation')) %dopar% {
           combiningPvalues(as.matrix(pvaluesPerm[ , , k]), method = combMethods[i], dataWeights = dataWeights);
         }
       }
       
       #closing the cluster
-      stopCluster(cl)
+      parallel::stopCluster(cl)
       
     }else{
       #combining the pvalues
@@ -319,22 +338,28 @@ omicsNPC_internal <- function(dataMatrices,
                             dimnames = dimnames(pvaluesNPC)[1:2])
     }
     
-    #adding data mapping to pvaluesNPC
+    #computing the FDR for the NPC p-values
+    fdrNPC <- apply(statsNPC, 2, FDR_calculation)
+    
+    #adding data mapping to pvaluesNPC and fdr
     pvaluesNPC <- cbind(dataMapping[, 1:length(dataMatrices)], pvaluesNPC)
     rownames(pvaluesNPC) <- NULL;
+    fdrNPC <- cbind(dataMapping[, 1:length(dataMatrices)], fdrNPC)
+    rownames(fdrNPC) <- NULL;
 
   }
   
-  #adding the permutation p-values to the limma results
-  for(i in 1:length(dataMatrices)){
-    P.Value.Perm <- pvalues0[, i]
-    adj.P.Val.Perm <- p.adjust(P.Value.Perm, method = 'fdr')
-    results0[[i]] <- cbind(results0[[i]]$results, P.Value.Perm, adj.P.Val.Perm)
-  }
-  
+  # #adding the permutation p-values to the limma results
+  # for(i in 1:length(dataMatrices)){
+  #   P.Value.Perm <- pvalues0[, i]
+  #   adj.P.Val.Perm <- p.adjust(P.Value.Perm, method = 'fdr')
+  #   results0[[i]] <- cbind(results0[[i]]$results, P.Value.Perm, adj.P.Val.Perm)
+  # }
+
   #returning
   toReturn <- results0;
   toReturn$pvaluesNPC <- pvaluesNPC;
+  toReturn$qvaluesNPC <- fdrNPC;
   if(returnPermPvalues){
     toReturn$pvaluesPerm = pvaluesPerm;
   }
@@ -363,9 +388,10 @@ computeAssociation <- function(dataMatrices, designs, dataMapping, functionsAnal
   toReturn <- matrix(NA, nrow = dim(dataMapping)[1], ncol = length(dataMatrices));
   colnames(toReturn) <- names(dataMatrices);
   
-  #filling the matrix
+  #separating the results. Note the ordering of the statistics
   for(j in 1:length(results)){
     toReturn[ , j] <- results[[j]]$statistics[as.character(dataMapping[[j]])];
+    results[[j]] <- results[[j]]$fullMatrix;
   }
   rownames(toReturn) <- rownames(dataMapping);
   

@@ -88,13 +88,3 @@ results <- omicsPC(dataInput = list(dataset1=dataset1, dataset2=dataset2, datase
                     dataMapping = dataMapping, phenotypeData = phenotypeData,  
                     allCombinations = TRUE)
 print(results)
-
-# dataInput = list(dataset1 = dataset1, dataset2 = dataset2, dataset3 = dataset3)
-# dataTypes = rep('continuous', length(dataInput))
-# outcomeName = NULL
-# combMethods = c("Fisher", "Liptak", "Tippett")
-# allCombinations = TRUE
-# verbose = FALSE
-# functionGeneratingIndex = NULL
-# dataWeights = rep(1, length(dataInput))/length(dataInput)
-# returnPermPvalues = FALSE

@@ -31,11 +31,13 @@ omicsPC_internal <- function(dataMatrices,
                                functionsAnalyzingData = functionsAnalyzingData, 
                                outcomeName = outcomeName,
                                returnPValues = TRUE, ...)
+  # tmp <- computeAssociation(dataMatrices = dataMatrices, designs = designs,
+  #                           dataMapping = dataMapping,
+  #                           functionsAnalyzingData = functionsAnalyzingData,
+  #                           outcomeName = outcomeName,
+  #                           returnPValues = TRUE)
   pvalues0 <- tmp$stats
   results0 <- tmp$results
-  for(i in 1:length(dataMatrices)){
-    results0[[i]] <- results0[[i]]$results;
-  }
   
   #information
   measurements <- dimnames(pvalues0)[[1]];
@@ -121,7 +123,7 @@ omicsPC_internal <- function(dataMatrices,
   #creating the object to return
   toReturn <- results0;
   toReturn$pvaluesPC <- pvaluesPC;
-  toReturn$adjPvaluesPC <- adjPvaluesPC;
+  toReturn$qvaluesPC <- adjPvaluesPC;
   
   #returning
   return(toReturn)

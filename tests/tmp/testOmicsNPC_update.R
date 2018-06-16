@@ -8,6 +8,8 @@ rm(list = ls())
 source('../../R/STATegRa_omicsNPC_internal.R')
 source('../../R/STATegRa_omicsNPC.R')
 source('../../R/STATegRa_omicsNPC_ancillaryFunctions.R')
+source('../../R/STATegRa_omicsPC.R')
+source('../../R/STATegRa_omicsPC_internal.R')
 library(foreach)
 library(data.table)
 
@@ -15,7 +17,7 @@ library(data.table)
 set.seed(12345)
 combMethods <- c('Fisher', 'Liptak', 'Tippett');
 numPerms <- 10;
-numCores <- 1;
+numCores <- 3;
 
 #### Binary outcome, two datasets ####
 
@@ -33,15 +35,41 @@ rownames(phenotypeData) <- paste('sample', 1:30, sep = '_')
 colnames(phenotypeData) <- c('cov1', 'cov2', 'outcome')
 phenotypeData[, 'outcome'] <- c(rep(1, 15), rep(0, 15))
 
+#one data matrix is actually differentially expressed
+dataset1[ , 16:20] <- dataset1[ , 16:20] + 3 * matrix(runif(100 * 5), 100, 5)
+
 #data mapping
 dataMapping <- expand.grid(rownames(dataset1), rownames(dataset2))
 dataMapping <- dataMapping[sample(1:nrow(dataMapping), 100), ]
 colnames(dataMapping) <- c('dataset1', 'dataset2')
 
 #omicsNPC
-results <- omicsNPC(dataInput = list(dataset1=dataset1, dataset2=dataset2), dataMapping = dataMapping, 
-                    phenotypeData = phenotypeData, numPerms = numPerms, numCores = 1)
-print(results)
+resultsNPC <- omicsNPC(dataInput = list(dataset1=dataset1, dataset2=dataset2), dataMapping = dataMapping, 
+                  phenotypeData = phenotypeData, numPerms = numPerms, numCores = numCores)
+print(resultsNPC)
+
+#omicsPC
+resultsPC <- omicsPC(dataInput = list(dataset1=dataset1, dataset2=dataset2), 
+                   dataMapping = dataMapping, phenotypeData = phenotypeData)
+print(resultsPC)
+
+#computing fisher p-values from scratch
+p1 <- resultsPC$dataset1[dataMapping$dataset1, 'P.Value']
+p2 <- resultsPC$dataset2[dataMapping$dataset2, 'P.Value']
+x2 <- -2 * (log(p1) + log(p2))
+fisherPvalue <- pchisq(x2, 4, lower.tail = FALSE)
+
+#comparing with PC and NPC
+cor(resultsPC$pvaluesPC[, 'Fisher'], fisherPvalue)
+cor(resultsNPC$pvaluesNPC[, 'Fisher'], fisherPvalue)
+
+#computing FDR from scratch
+fisherQvalue <- p.adjust(fisherPvalue, method = 'fdr')
+
+#comparing with PC and NPC
+cor(resultsPC$qvaluesPC[, 'Fisher'], fisherQvalue)
+cor(resultsNPC$qvaluesNPC[, 'Fisher'], fisherQvalue)
+plot(resultsNPC$qvaluesNPC[, 'Fisher'], fisherQvalue)
 
 #### Multi-class outcome, two datasets ####
 
@@ -51,7 +79,7 @@ phenotypeData[, 'outcome'] <- rep(letters[1:3], 10)
 
 #omicsNPC
 results <- omicsNPC(dataInput = list(dataset1=dataset1, dataset2=dataset2), dataMapping = dataMapping, 
-                      phenotypeData = phenotypeData, numPerms = numPerms, numCores = 1)
+                      phenotypeData = phenotypeData, numPerms = numPerms, numCores = numCores)
 print(results)
 
 #### Survival outcome, two datasets ####
@@ -62,7 +90,7 @@ phenotypeData[, 'outcome'] <- Surv(time = runif(30),
 
 #omicsNPC
 results <- omicsNPC(dataInput = list(dataset1=dataset1, dataset2=dataset2), dataMapping = dataMapping, 
-                    phenotypeData = phenotypeData, numPerms = numPerms, numCores = 1)
+                    phenotypeData = phenotypeData, numPerms = numPerms, numCores = numCores)
 print(results)
 
 #### Binary outcome, three datasets ####
@@ -83,7 +111,7 @@ colnames(dataMapping) <- c('dataset1', 'dataset2', 'dataset3')
 #omicsNPC
 results <- omicsNPC(dataInput = list(dataset1=dataset1, dataset2=dataset2, dataset3=dataset3), 
                       dataMapping = dataMapping, phenotypeData = phenotypeData,  
-                      allCombinations = FALSE, numPerms = numPerms, numCores = 1)
+                      allCombinations = FALSE, numPerms = numPerms, numCores = numCores)
 print(results)
 
 #### Binary outcome, three datasets, all combinations ####
@@ -91,15 +119,7 @@ print(results)
 #omicsNPC
 results <- omicsNPC(dataInput = list(dataset1=dataset1, dataset2=dataset2, dataset3=dataset3), 
                     dataMapping = dataMapping, phenotypeData = phenotypeData,  
-                    allCombinations = TRUE, numPerms = numPerms, numCores = 1)
+                    allCombinations = TRUE, numPerms = numPerms, numCores = numCores)
 print(results)
 
-# dataInput = list(dataset1 = dataset1, dataset2 = dataset2, dataset3 = dataset3)
-# dataTypes = rep('continuous', length(dataInput))
-# outcomeName = NULL
-# combMethods = c("Fisher", "Liptak", "Tippett")
-# allCombinations = TRUE
-# verbose = FALSE
-# functionGeneratingIndex = NULL
-# dataWeights = rep(1, length(dataInput))/length(dataInput)
-# returnPermPvalues = FALSE
+
