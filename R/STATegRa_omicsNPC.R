@@ -226,7 +226,7 @@ setMethod(
       designs <- vector('list', length(dataInput));
       names(designs) <- names(dataInput);
       for(i in 1:length(dataInput)){
-        designs[[i]] <- phenotypeData[colnames(dataInput[[i]]), ]
+        designs[[i]] <- phenotypeData[colnames(dataInput[[i]]), , drop = FALSE]
       }
       
     }
