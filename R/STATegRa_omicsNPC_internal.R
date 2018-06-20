@@ -168,13 +168,15 @@ omicsNPC_internal <- function(dataMatrices,
   pvaluesPerm <- aperm(pvaluesPerm, c(2, 3, 1)) # magic numbers!
   
   #taking the partial p-values
-  # pvalues0 <- matrix(pvaluesPerm[ , , 1],
-  #                      nrow = numMeasurements, 
-  #                      ncol = numDataMatrices, 
-  #                      dimnames = dimnames(pvaluesPerm)[1:2]);
+  pvalues0Full <- matrix(pvaluesPerm[ , , 1],
+                       nrow = numMeasurements,
+                       ncol = numDataMatrices,
+                       dimnames = dimnames(pvaluesPerm)[1:2]);
+  colnames(pvalues0Full) <- paste0('perm_pvalue_', names(dataMatrices))
   
   #computing the FDR for the permutation p-values
-  #fdr0 <- apply(statsPerm, 2, FDR_calculation)
+  fdr0Full <- apply(statsPerm, 2, FDR_calculation)
+  colnames(fdr0Full) <- paste0('perm_qvalue_', names(dataMatrices))
   
   #### STEP 4 Compute NPC p-values ####
   
@@ -195,6 +197,8 @@ omicsNPC_internal <- function(dataMatrices,
     
     #initializing 
     dataMappings <- vector('list', numCombinations);
+    pvalues0 <- vector('list', numCombinations);
+    fdr0 <- vector('list', numCombinations);
     pvaluesNPC <- vector('list', numCombinations);
     fdrNPC <- vector('list', numCombinations);
     
@@ -274,10 +278,14 @@ omicsNPC_internal <- function(dataMatrices,
       fdrNPC[[j]] <- apply(statsNPC, 2, FDR_calculation)
       names(fdrNPC)[j] <- names(pvaluesNPC)[j];
       
-      #adding data mapping to pvaluesNPC and fdrNPC
-      pvaluesNPC[[j]] <- cbind(dataMappings[[j]], pvaluesNPC[[j]])
+      #pvalue0 and fdr0
+      pvalues0[[j]] <- pvalues0Full[ , combinations[[j]]]
+      fdr0[[j]] <- fdr0Full[ , combinations[[j]]]
+      
+      #adding data mapping, pvalue0 and fdr0 to pvaluesNPC and fdrNPC
+      pvaluesNPC[[j]] <- cbind(dataMappings[[j]], pvalues0[[j]], pvaluesNPC[[j]])
       rownames(pvaluesNPC[[j]]) <- NULL;
-      fdrNPC[[j]] <- cbind(dataMappings[[j]], fdrNPC[[j]])
+      fdrNPC[[j]] <- cbind(dataMappings[[j]], fdr0[[j]], fdrNPC[[j]])
       rownames(fdrNPC[[j]]) <- NULL;
       
     }
@@ -342,9 +350,9 @@ omicsNPC_internal <- function(dataMatrices,
     fdrNPC <- apply(statsNPC, 2, FDR_calculation)
     
     #adding data mapping to pvaluesNPC and fdr
-    pvaluesNPC <- cbind(dataMapping[, 1:length(dataMatrices)], pvaluesNPC)
+    pvaluesNPC <- cbind(dataMapping[, 1:length(dataMatrices)], pvalues0Full, pvaluesNPC)
     rownames(pvaluesNPC) <- NULL;
-    fdrNPC <- cbind(dataMapping[, 1:length(dataMatrices)], fdrNPC)
+    fdrNPC <- cbind(dataMapping[, 1:length(dataMatrices)], fdr0Full, fdrNPC)
     rownames(fdrNPC) <- NULL;
 
   }
