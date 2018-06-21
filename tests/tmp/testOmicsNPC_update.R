@@ -117,9 +117,17 @@ print(results)
 #### Binary outcome, three datasets, all combinations ####
 
 #omicsNPC
-results <- omicsNPC(dataInput = list(dataset1=dataset1, dataset2=dataset2, dataset3=dataset3), 
+results <- omicsNPC(dataInput = list(dataset1=dataset1, dataset2=dataset2, dataset3=dataset3),
                     dataMapping = dataMapping, phenotypeData = phenotypeData,  
                     allCombinations = TRUE, numPerms = numPerms, numCores = numCores)
 print(results)
 
+
+#### Binary outcome, three datasets, all combinations, returning all permutation p-values ####
+
+#omicsNPC
+results <- omicsNPC(dataInput = list(dataset1=dataset1, dataset2=dataset2, dataset3=dataset3),
+                    returnPermPvalues = TRUE, dataMapping = dataMapping, phenotypeData = phenotypeData,  
+                    allCombinations = TRUE, numPerms = numPerms, numCores = numCores)
+print(results)
 

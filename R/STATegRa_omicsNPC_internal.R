@@ -260,16 +260,16 @@ omicsNPC_internal <- function(dataMatrices,
       dataMappingTmp <- dataMappingTmp[toKeep, ]
       
       #keeping only the relevant pvalues
-      if(!returnPermPvalues){
+      #if(!returnPermPvalues){
         pvaluesNPC[[j]] <- matrix(pvaluesNPCTemp[toKeep, , 1], 
                              nrow = sum(toKeep), 
                              ncol = numCombMethods, 
                              dimnames = list(dimnames(pvaluesNPCTemp)[[1]][toKeep], dimnames(pvaluesNPCTemp)[[2]]))
         rownames(pvaluesNPC[[j]]) <- rownames(dataMappingTmp);
-      }else{
-        pvaluesNPC[[j]] <- pvaluesNPCTemp[toKeep, , ];
-        dimnames(pvaluesNPC[[j]])[[1]] <- rownames(dataMappingTmp);
-      }
+      # }else{
+      #   pvaluesNPC[[j]] <- pvaluesNPCTemp[toKeep, , ];
+      #   dimnames(pvaluesNPC[[j]])[[1]] <- rownames(dataMappingTmp);
+      # }
       
       #storing and naming the results
       dataMappings[[j]] <- dataMappingTmp;
@@ -339,12 +339,12 @@ omicsNPC_internal <- function(dataMatrices,
     pvaluesNPC <- aperm(pvaluesNPC, c(2, 3, 1)) # magic numbers!
     
     #keeping only the relevant pvalues, if not specified otherwise
-    if(!returnPermPvalues){
+    #if(!returnPermPvalues){
       pvaluesNPC <- matrix(pvaluesNPC[ , , 1], 
                             nrow = numMeasurements, 
                             ncol = numCombMethods, 
                             dimnames = dimnames(pvaluesNPC)[1:2])
-    }
+    #}
     
     #computing the FDR for the NPC p-values
     fdrNPC <- apply(statsNPC, 2, FDR_calculation)
