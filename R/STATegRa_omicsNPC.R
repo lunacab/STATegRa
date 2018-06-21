@@ -113,6 +113,11 @@ setMethod(
     classNames <- sapply(dataInput, class)
     testClass <- sapply(X = classNames, FUN = match.arg, 
                         choices = c('ExpressionSet', 'matrix', 'data.frame'))
+    
+    #more than one element?
+    if(length(dataInput) < 2){
+      stop('dataInput must contain at least two elements')
+    }
   
     #homogeneous data?
     if(length(unique(classNames)) > 1){
