@@ -133,13 +133,16 @@ computeAssocContinuousData <- function(dataMatrix, design, outcomeName, useVoom 
     }
     
     #retrieving the statistics
-    results <-t(apply(dataMatrix, 1, modelFunction, design, outcomeId));
+    results <- t(apply(dataMatrix, 1, modelFunction, design, outcomeId));
     if(returnPValues){
       statistics <- results[, 'Pr(>|z|)']
     }else{
       statistics <- results[, 'z']
     }
     
+    # adding the adjusted p-values for consistency with limma
+    results <- cbind(results, p.adjust(results[, 'Pr(>|z|)'], method = 'fdr'))
+    colnames(results)[ncol(results)] <- 'adj.P.Val'
     #returning statistics (log transformed p-values)
     names(statistics) <- rownames(dataMatrix);
     rownames(results) <- rownames(dataMatrix);

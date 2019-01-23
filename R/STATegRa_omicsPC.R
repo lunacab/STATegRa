@@ -32,7 +32,7 @@
 #' @param ... Additional arguments to be passed to the user-defined functions
 #'
 #' @return A list containing:
-#' TODO names of the singl dataset results
+#' TODO names of the single dataset results
 #' pvaluesPC The p-values computed through PC.
 #'
 #' @author Vincenzo Lagani
