@@ -351,6 +351,18 @@ setMethod(
     type <- match.arg(type,choices=c("common","individual","both"))
     
     set.seed(12464863)
+	
+	#Combination of blocks can be done exclusibely for scores
+    if (what!="scores" & combined==TRUE){
+      warning("loadings are not able to be combined. Set combined=FALSE")
+      combined <- FALSE
+    }
+    
+    #Plotting loadings or both (scores + loadings) block definition is needed
+    if (what!="scores" & is.null(block)){
+      stop("'block' argument is required for loadings and loadings + score plot")
+    }
+	
     if (combined & object@caMethod%in%c("DISCO-SCA","JIVE") & type=="common" & what=="scores"){
      stop(paste(object@caMethod)," does not distinguish between common scores for each block. 
                     It is not possible to plot a combined plot in this case")
@@ -366,18 +378,17 @@ setMethod(
       warning(paste(object@caMethod)," does not distinguish between common scores for each block")
     }
     
+    #define auxiliar variable for ylabel when just 1 components is found for one
+    common_aux <- FALSE
+    dist1_aux <- FALSE
+    dist2_aux <- FALSE
+
+	
     #check and define type
     if (type=="common") type2 <- c("common","common")
     if (type=="individual") type2 <- c("dist","dist")
     if (type=="both") type2 <- c("common","dist")
     
-    if (what!="scores" & combined==TRUE){
-      warning("loadings are not able to be combined")
-      combined <- FALSE
-    }
-    if (what!="scores" & is.null(block)){
-      stop("'block' argument is required for loadings and loadings + score plot")
-    }
     
     #check and define block
     if (is.null(block)){
@@ -398,20 +409,35 @@ setMethod(
           block_name <- object@Names
         }
         if (type=="both"){
-          if (!block%in%object@Names){
+          if (!block[1]%in%object@Names  & !block[1]%in%c("1","2")){
             stop("block ", block," does not exist")
           }
-          bb1 <- which(object@Names==block)
-          bb2 <- which(object@Names!=block)
-          block_name <- c(object@Names[bb1], object@Names[bb2])
-          block <- c(as.character(bb1),as.character(bb2))
+          if (block[1]%in%c("1","2")){
+            bb1 <- which(c("1","2")==block)
+            bb2 <- which(c("1","2")!=block)
+            block_name <- c(object@Names[bb1], object@Names[bb2])
+            block <- c(as.character(bb1),as.character(bb2))
+          }
+          if (block[1]%in%object@Names){
+            bb1 <- which(object@Names==block)
+            bb2 <- which(object@Names!=block)
+            block_name <- c(object@Names[bb1], object@Names[bb2])
+            block <- c(as.character(bb1),as.character(bb2))
+          }
         }
-      }else if (!block%in%object@Names){
+      }else if (!block[1]%in%object@Names & !block[1]%in%c("1","2")){
         stop("block ", block," does not exist")
       }else{
-        bb <- which(object@Names==block)
-        block_name <- c(block, block)
-        block <- c(as.character(bb),as.character(bb))
+        if (block[1]%in%c("1","2")){
+          block <- c(block,block)
+          bb1 <- which(c("1","2")==block)
+          block_name <- c(object@Names[bb1], object@Names[bb1])
+        }
+        if (block[1]%in%object@Names){
+          bb <- which(object@Names==block)
+          block_name <- c(block, block)
+          block <- c(as.character(bb),as.character(bb))
+        }
       }
     }
 
@@ -470,19 +496,61 @@ setMethod(
       
     #create auxiliar variables in case of just one component in common or distinctive structures
     if (object@commonComps==1){
-      df$common1_2 <- runif(nrow(df),min(df$common1_1),max(df$common1_1))
-      df$common2_2 <- runif(nrow(df),min(df$common2_1),max(df$common2_1))
-      ylabel <- "Auxiliar to plot"
+      df$common1_2 <- runif(nrow(df),min(df$common1_1, na.rm=TRUE),max(df$common1_1, na.rm=TRUE))
+      df$common2_2 <- runif(nrow(df),min(df$common2_1, na.rm=TRUE),max(df$common2_1, na.rm=TRUE))
+      common_aux <- TRUE
     }
     if (object@distComps[1]==1){  #In Block 1
-      df$dist1_2 <- runif(nrow(df),min(df$dist1_1),max(df$dist1_1))
-      ylabel <- "Auxiliar to plot"
+      df$dist1_2 <- runif(nrow(df),min(df$dist1_1, na.rm=TRUE),max(df$dist1_1, na.rm=TRUE))
+      dist1_aux <- TRUE
     }     
     if (object@distComps[2]==1){  #In Block 2
-      df$dist2_2 <- runif(nrow(df),min(df$dist2_1),max(df$dist2_1))
-      ylabel <- "Auxiliar to plot"
+      df$dist2_2 <- runif(nrow(df),min(df$dist2_1, na.rm=TRUE),max(df$dist2_1, na.rm=TRUE))
+      dist2_aux <- TRUE
     }     
-  
+
+    if(type=="common" & common_aux){
+      if(object@commonComps+1 < max(comps)) stop("Number of compsonents higher than allowed")
+    }
+    if(type=="common" & !common_aux){
+      if(object@commonComps < max(comps)) stop("Number of compsonents higher than allowed")
+    }
+    
+    
+    if(type=="individual" & dist1_aux & block[1]=="1"){
+      if(object@distComps[1]+1 < max(comps)) stop("Number of compsonents higher than allowed")
+    }
+    if(type=="individual" & !dist1_aux & block[1]=="1"){
+      if(object@distComps[1] < max(comps)) stop("Number of compsonents higher than allowed")
+    }
+    
+    if(type=="individual" & dist2_aux & block[1]=="2"){
+      if(object@distComps[2]+1 < max(comps)) stop("Number of compsonents higher than allowed")
+    }
+    if(type=="individual" & !dist2_aux & block[1]=="2"){
+      if(object@distComps[2] < max(comps)) stop("Number of compsonents higher than allowed")
+    }
+    
+    
+    if(type=="both" & common_aux){
+      if(object@commonComps+1 < comps[1]) stop("Number of compsonents higher than allowed")
+    }
+    if(type=="both" & !common_aux){
+      if(object@commonComps < comps[1]) stop("Number of compsonents higher than allowed")
+    }
+    if(type=="both" & dist1_aux & block[1]=="1"){
+      if(object@distComps[1]+1 < comps[2]) stop("Number of compsonents higher than allowed")
+    }
+    if(type=="both" & !dist1_aux & block[1]=="1"){
+      if(object@distComps[1] < comps[2]) stop("Number of compsonents higher than allowed")
+    }
+    if(type=="both" & dist2_aux & block[1]=="2"){
+      if(object@distComps[2]+1 < comps[2]) stop("Number of compsonents higher than allowed")
+    }
+    if(type=="both" & !dist2_aux & block[1]=="2"){
+      if(object@distComps[2] < comps[2]) stop("Number of compsonents higher than allowed")
+    }
+	
     #graphical parameters
     if (what=="scores"){     
       if (!is.null(color)){
@@ -510,7 +578,46 @@ setMethod(
       }
       df <- data.frame(df,color=as.factor(c(as.character(pData(object@InitialData[[1]])[,color]),rep("color",nrow(dfl)))))
     }
-      
+
+    if(type=="common" & common_aux & sum(comps)>2){
+      ylabel <- "Auxiliar to plot"
+      warning("Only one common component found, auxiliar variable is defined to help visualization")
+    }
+    if(type=="individual" & (dist1_aux | dist2_aux)){
+      if(block[1]=="1" & object@distComps[1]==1 & !combined){
+        if(comps[1]==1) ylabel <- "Auxiliar to plot"
+        if(comps[2]==1) xlabel <- "Auxiliar to plot"
+        warning("Only one individual component found for Block",block[1],". Auxiliar variable is defined to help visualization.")
+      } 
+      if(block[1]=="2" & object@distComps[2]==1 & !combined){
+        if(comps[1]==1) ylabel <- "Auxiliar to plot"
+        if(comps[2]==1) xlabel <- "Auxiliar to plot"
+        warning("Only one individual component found for Block",block[1],". Auxiliar variable is defined to help visualization.")
+      }
+      if(block[1]=="1" & object@distComps[1]==1 & combined & comps[1]>=2){
+        xlabel <- "Auxiliar to plot"
+        warning("Are the user sure to plot component ",comps[1]," for Block",block[1],"?\n Only one common component found for Block",block[1],". Auxiliar variable is defined to help visualization.")
+      } 
+      if(block[1]=="2" & object@distComps[2]==1 & combined & comps[2]>=2){
+        ylabel <- "Auxiliar to plot"
+        warning("Are the user sure to plot component ",comps[2]," for Block",block[1],"?\n Only one common component found for Block",block[1],". Auxiliar variable is defined to help visualization.")
+      } 
+    }
+    if(type=="both" & (common_aux | dist1_aux | dist2_aux)){
+      if(comps[1]>1 & common_aux){
+        xlabel <- "Auxiliar to plot"
+        warning("Only one common component found, auxiliar variable is defined to help visualization")
+      }
+      if(block[1]=="1" & dist1_aux & comps[2]>1){
+        ylabel <- "Auxiliar to plot"
+        warning("Only one individual component found for Block",block[1],". Auxiliar variable is defined to help visualization.")
+      }
+      if(block[1]=="2" & dist2_aux & comps[2]>1){
+        ylabel <- "Auxiliar to plot"
+        warning("Only one individual component found for Block",block[1],". Auxiliar variable is defined to help visualization.")
+      }
+    }
+	
       #plot
       plotting(df,comps,xname=paste(type2[1],block[1],"_",comps[1],sep=""),yname=paste(type2[2],block[2],"_",comps[2],sep=""),color,what,type,combined,block=block_name,shape,labels,title,xlabel,
                ylabel,background,palette,pointSize,labelSize,axisSize,titleSize,sizeValues,shapeValues)  
