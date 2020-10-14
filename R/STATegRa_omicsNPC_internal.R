@@ -3,6 +3,7 @@
 # See the omicsNPC function instead.
 
 #' @importFrom utils combn
+#' @importFrom data.table frank
 omicsNPC_internal <- function(dataMatrices, 
                               designs, 
                               dataMapping,
@@ -29,8 +30,17 @@ omicsNPC_internal <- function(dataMatrices,
   numDataMatrices <- length(dataMatrices)
   numCombMethods <- length(combMethods);
   
+  #can we run in parallel?
+  parallelAvailable <- FALSE;
+  
   # computing the statistics on the original data
-  stats0 <- computeAssociation(dataMatrices = dataMatrices, designs = designs, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName, ...)
+  tmp <- computeAssociation(dataMatrices = dataMatrices, designs = designs, 
+                            dataMapping = dataMapping, 
+                            functionsAnalyzingData = functionsAnalyzingData, 
+                            outcomeName = outcomeName, ...)
+  #system.time(tmp <- computeAssociation(dataMatrices = dataMatrices, designs = designs, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName))
+  stats0 <- tmp$stats
+  results0 <- tmp$results
   
   #information
   measurements <- dimnames(stats0)[[1]];
@@ -42,16 +52,24 @@ omicsNPC_internal <- function(dataMatrices,
   if(verbose){
       message("Building NULL distributions by permuting data")
   }
-
+  
+  #restricting the data matrices to the elements in mapping
+  restrictedDataMatrices <- dataMatrices
+  for(i in 1:length(dataMatrices)){
+    restrictedDataMatrices[[i]] <- dataMatrices[[i]][unique(dataMapping[ , i]), , drop = FALSE]
+  }
+  
   # set function for permutation
   executePermutation <- function(...){
       
     # permute designs
     permDesigns <- permutingData(designs = designs, functionGeneratingIndex = functionGeneratingIndex, outcomeName = outcomeName, ...)
-
+    #permDesigns <- permutingData(designs = designs, functionGeneratingIndex = functionGeneratingIndex, outcomeName = outcomeName)
 
     # recompute pvalues
-    tempRes <- computeAssociation(dataMatrices, designs = permDesigns, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName, ...)
+    tempRes <- computeAssociation(restrictedDataMatrices, designs = permDesigns, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName, ...)
+    #tempRes <- computeAssociation(restrictedDataMatrices, designs = permDesigns, dataMapping = dataMapping, functionsAnalyzingData = functionsAnalyzingData, outcomeName = outcomeName)
+    tempRes <- tempRes$stats
     
     #return
     return(tempRes)
@@ -71,24 +89,58 @@ omicsNPC_internal <- function(dataMatrices,
         doSNOW::registerDoSNOW(cl)
     
         # compute DE expression
-        statsPerm <- foreach(i = 1:numPerms, .packages = 'limma') %dopar% {executePermutation(...)}
-
+        statsPerm <- foreach(i = 1:numPerms, .packages = c('limma', 'survival'), 
+                             .export = c('combiningPvalues', 'permutingData', 'computeAssociation')) %dopar% {
+          tryCatch({executePermutation(...)},
+          #tryCatch({executePermutation()}, 
+                     error = function(e){
+                       tempRes <- matrix(NA, dim(dataMapping)[1], dim(dataMapping)[2] - 1);
+                       rownames(tempRes) <- rownames(dataMapping);
+                       colnames(tempRes) <- colnames(dataMapping)[1:(dim(dataMapping)[2] - 1)];
+                       return(tempRes)
+                     }
+                  )
+         
+        }
+        
         #stopping the cluster
         parallel::stopCluster(cl)
+        
+        #parallel is available
+        parallelAvailable <- TRUE;
         
     }else{
       
       #not possible to run in parallel
       message("Install doSNOW to run omicsNPC in parallel...")
       message("omicsNPC will run using ONE core")
-      statsPerm <- foreach(i = 1:numPerms) %do% executePermutation(...)
+      statsPerm <- foreach(i = 1:numPerms) %do% {
+      tryCatch({executePermutation(...)}, 
+                 error = function(e){
+                   tempRes <- matrix(NA, dim(dataMapping)[1], dim(dataMapping)[2] - 1);
+                   rownames(tempRes) <- rownames(dataMapping);
+                   colnames(tempRes) <- colnames(dataMapping)[1:(dim(dataMapping)[2] - 1)];
+                   return(tempRes)
+                 }
+        )
+      }
 
     }
     
   }else{
     
     #running serially
-    statsPerm <- foreach(i = 1:numPerms) %do% executePermutation(...)
+    statsPerm <- foreach(i = 1:numPerms) %do% {
+      tryCatch({executePermutation(...)}, 
+      #tryCatch({executePermutation()}, 
+               error = function(e){
+                 tempRes <- matrix(NA, dim(dataMapping)[1], dim(dataMapping)[2] - 1);
+                 rownames(tempRes) <- rownames(dataMapping);
+                 colnames(tempRes) <- colnames(dataMapping)[1:(dim(dataMapping)[2] - 1)];
+                 return(tempRes)
+               }
+      )
+    }
 
   }
    
@@ -116,11 +168,15 @@ omicsNPC_internal <- function(dataMatrices,
   pvaluesPerm <- aperm(pvaluesPerm, c(2, 3, 1)) # magic numbers!
   
   #taking the partial p-values
-  #keeping only the relevant pvalues
-  pvalues0 <- matrix(pvaluesPerm[ , , 1],
-                       nrow = numMeasurements, 
-                       ncol = numDataMatrices, 
+  pvalues0Full <- matrix(pvaluesPerm[ , , 1],
+                       nrow = numMeasurements,
+                       ncol = numDataMatrices,
                        dimnames = dimnames(pvaluesPerm)[1:2]);
+  colnames(pvalues0Full) <- paste0('perm_pvalue_', names(dataMatrices))
+  
+  #computing the FDR for the permutation p-values
+  fdr0Full <- apply(statsPerm, 2, FDR_calculation)
+  colnames(fdr0Full) <- paste0('perm_qvalue_', names(dataMatrices))
   
   #### STEP 4 Compute NPC p-values ####
   
@@ -140,7 +196,11 @@ omicsNPC_internal <- function(dataMatrices,
     numCombinations <- length(combinations);
     
     #initializing 
+    dataMappings <- vector('list', numCombinations);
+    pvalues0 <- vector('list', numCombinations);
+    fdr0 <- vector('list', numCombinations);
     pvaluesNPC <- vector('list', numCombinations);
+    fdrNPC <- vector('list', numCombinations);
     
     #for each combination, let's compute the NPC stats and p-values
     for(j in 1:numCombinations){
@@ -149,197 +209,175 @@ omicsNPC_internal <- function(dataMatrices,
       statsNPC <- array(dim = c(numMeasurements, numCombMethods, numPerms + 1), 
                         dimnames = list(measurements, combMethods, dimnames(pvaluesPerm)[[3]]));
       
-      #combining the pvalues. Here we choose which data matrice to combine
-      for(i in 1:numCombMethods){
-        statsNPC[ , i, ] <-  apply(pvaluesPerm[ , combinations[[j]], ], 3, combiningPvalues, method = combMethods[i], dataWeights = dataWeights);
+      #is parallel available?
+      if(parallelAvailable){
+        
+        #creating the cluster
+        cl <- parallel::makeCluster(numCores)
+        
+        #registering the cluster
+        doSNOW::registerDoSNOW(cl)   
+        
+        #combining the pvalues. Here we choose which data matrice to combine
+        for(i in 1:numCombMethods){
+          statsNPC[ , i, ] <- foreach(k = 1:dim(pvaluesPerm)[3], .combine = 'cbind',
+                                      .export = c('combiningPvalues', 'permutingData', 'computeAssociation')) %dopar% {
+            combiningPvalues(as.matrix(pvaluesPerm[ , combinations[[j]], k]), method = combMethods[i], dataWeights = dataWeights);
+          }
+        }
+        
+        #closing the cluster
+        parallel::stopCluster(cl)
+        
+      }else{
+        
+        #combining the pvalues. Here we choose which data matrice to combine
+        for(i in 1:numCombMethods){
+          statsNPC[ , i, ] <-  apply(pvaluesPerm[ , combinations[[j]], ], 3, combiningPvalues, method = combMethods[i], dataWeights = dataWeights);
+        }
+        
       }
+      
+      #let's ensure that all statistics are larger than 0
+      #this does not affect the computation of the pvalues
+      finiteStats <- !is.infinite(statsNPC);
+      minStats <- min(statsNPC[finiteStats], na.rm = TRUE);
+      maxStats <- max(statsNPC[finiteStats], na.rm = TRUE);
+      statsNPC[!finiteStats & sign(statsNPC) < 0] <- minStats - 1;
+      statsNPC[!finiteStats & sign(statsNPC) > 0] <- maxStats + 1;
+      minStats <- min(statsNPC, na.rm = TRUE);
+      statsNPC <- statsNPC - min(statsNPC) + 1 
       
       #computing the NPC p-values
       pvaluesNPCTemp <- statisticsToPvalues(statsNPC);
       pvaluesNPCTemp <- aperm(pvaluesNPCTemp, c(2, 3, 1)) # magic numbers!
       
-      #keeping only the relevant pvalues, if not specified otherwise
-      if(!returnPermPvalues){
-        pvaluesNPC[[j]] <- matrix(pvaluesNPCTemp[ , , 1], 
-                             nrow = numMeasurements, 
-                             ncol = numCombMethods, 
-                             dimnames = dimnames(pvaluesNPCTemp)[1:2])
-      }
+      #creating the data mapping for the combination at hand
+      dataMappingTmp <- dataMapping[, combinations[[j]]];
+      toKeep <- !duplicated(dataMappingTmp) & !apply(dataMappingTmp, 1, function(x){all(is.na(x))})
+      # dataMappingTmp <- cbind(dataMappingTmp[toKeep, ], dataMapping[toKeep, ncol(dataMapping)]) #adding the reference
+      # rownames(dataMappingTmp) <- apply(dataMappingTmp, 1, function(x){paste(x, collapse = ':')});
+      dataMappingTmp <- dataMappingTmp[toKeep, ]
       
-      #naming the list component
+      #keeping only the relevant pvalues
+      #if(!returnPermPvalues){
+        pvaluesNPC[[j]] <- matrix(pvaluesNPCTemp[toKeep, , 1], 
+                             nrow = sum(toKeep), 
+                             ncol = numCombMethods, 
+                             dimnames = list(dimnames(pvaluesNPCTemp)[[1]][toKeep], dimnames(pvaluesNPCTemp)[[2]]))
+        rownames(pvaluesNPC[[j]]) <- rownames(dataMappingTmp);
+      # }else{
+      #   pvaluesNPC[[j]] <- pvaluesNPCTemp[toKeep, , ];
+      #   dimnames(pvaluesNPC[[j]])[[1]] <- rownames(dataMappingTmp);
+      # }
+      
+      #storing and naming the results
+      dataMappings[[j]] <- dataMappingTmp;
       names(pvaluesNPC)[j] <- paste(datasetsNames[combinations[[j]]], collapse = '_');
+      names(dataMappings)[j] <- names(pvaluesNPC)[j];
+      fdrNPC[[j]] <- apply(statsNPC, 2, FDR_calculation)
+      names(fdrNPC)[j] <- names(pvaluesNPC)[j];
+      
+      #pvalue0 and fdr0
+      pvalues0[[j]] <- pvalues0Full[ , combinations[[j]]]
+      fdr0[[j]] <- fdr0Full[ , combinations[[j]]]
+      
+      #adding data mapping, pvalue0 and fdr0 to pvaluesNPC and fdrNPC
+      pvaluesNPC[[j]] <- cbind(dataMappings[[j]], pvalues0[[j]], pvaluesNPC[[j]])
+      rownames(pvaluesNPC[[j]]) <- NULL;
+      fdrNPC[[j]] <- cbind(dataMappings[[j]], fdr0[[j]], fdrNPC[[j]])
+      rownames(fdrNPC[[j]]) <- NULL;
       
     }
-      
-  }else{
+    
+  }else{#not all combinations
     
     #initializing
     statsNPC <- array(dim = c(numMeasurements, numCombMethods, numPerms + 1), 
                       dimnames = list(measurements, combMethods, dimnames(pvaluesPerm)[[3]]));
     
-    #combining the pvalues
-    for(i in 1:numCombMethods){
-      statsNPC[ , i, ] <-  apply(pvaluesPerm, 3, combiningPvalues, 
-                                 method = combMethods[i], dataWeights = dataWeights)
+    #is parallel available ?
+    if(parallelAvailable){
+      
+      #creating the cluster
+      cl <- parallel::makeCluster(numCores)
+      
+      #registering the cluster
+      doSNOW::registerDoSNOW(cl)   
+      
+      for(i in 1:numCombMethods){
+        statsNPC[ , i, ] <- foreach(k = 1:dim(pvaluesPerm)[3], .combine = 'cbind', 
+                                    .export = c('combiningPvalues', 'permutingData', 'computeAssociation')) %dopar% {
+          combiningPvalues(as.matrix(pvaluesPerm[ , , k]), method = combMethods[i], dataWeights = dataWeights);
+        }
+      }
+      
+      #closing the cluster
+      parallel::stopCluster(cl)
+      
+    }else{
+      #combining the pvalues
+      for(i in 1:numCombMethods){
+        statsNPC[ , i, ] <-  apply(pvaluesPerm, 3, combiningPvalues, 
+                                   method = combMethods[i], dataWeights = dataWeights)
+      }
+      
     }
+    
+    #let's ensure that all statistics are larger than 0
+    #this does not affect the computation of the pvalues
+    finiteStats <- !is.infinite(statsNPC);
+    minStats <- min(statsNPC[finiteStats], na.rm = TRUE);
+    maxStats <- max(statsNPC[finiteStats], na.rm = TRUE);
+    statsNPC[!finiteStats & sign(statsNPC) < 0] <- minStats - 1;
+    statsNPC[!finiteStats & sign(statsNPC) > 0] <- maxStats + 1;
+    minStats <- min(statsNPC, na.rm = TRUE);
+    statsNPC <- statsNPC - min(statsNPC) + 1 
     
     #computing the NPC p-values
     pvaluesNPC <- statisticsToPvalues(statsNPC);
     pvaluesNPC <- aperm(pvaluesNPC, c(2, 3, 1)) # magic numbers!
     
     #keeping only the relevant pvalues, if not specified otherwise
-    if(!returnPermPvalues){
+    #if(!returnPermPvalues){
       pvaluesNPC <- matrix(pvaluesNPC[ , , 1], 
                             nrow = numMeasurements, 
                             ncol = numCombMethods, 
                             dimnames = dimnames(pvaluesNPC)[1:2])
-    }
+    #}
+    
+    #computing the FDR for the NPC p-values
+    fdrNPC <- apply(statsNPC, 2, FDR_calculation)
+    
+    #adding data mapping to pvaluesNPC and fdr
+    pvaluesNPC <- cbind(dataMapping[, 1:length(dataMatrices)], pvalues0Full, pvaluesNPC)
+    rownames(pvaluesNPC) <- NULL;
+    fdrNPC <- cbind(dataMapping[, 1:length(dataMatrices)], fdr0Full, fdrNPC)
+    rownames(fdrNPC) <- NULL;
 
   }
   
-  #creating the object to return
-  #Note: for the moment is only a list. It will be a proper object in a next release
-  #pvaluesNPC: either a matrix (allCombinations = FALSE) or a list (allCombinations = TRUE)
+  # #adding the permutation p-values to the limma results
+  # for(i in 1:length(dataMatrices)){
+  #   P.Value.Perm <- pvalues0[, i]
+  #   adj.P.Val.Perm <- p.adjust(P.Value.Perm, method = 'fdr')
+  #   results0[[i]] <- cbind(results0[[i]]$results, P.Value.Perm, adj.P.Val.Perm)
+  # }
+
+  #returning
+  toReturn <- results0;
+  toReturn$pvaluesNPC <- pvaluesNPC;
+  toReturn$qvaluesNPC <- fdrNPC;
   if(returnPermPvalues){
-    toReturn <- list(stats0 = stats0, pvalues0 = pvalues0, pvaluesNPC = pvaluesNPC, pvaluesPerm = pvaluesPerm);
-  }else{
-    toReturn <- list(stats0 = stats0, pvalues0 = pvalues0, pvaluesNPC = pvaluesNPC);
+    toReturn$pvaluesPerm = pvaluesPerm;
   }
   
+  #return
   return(toReturn)
 
 }
 
-#### Ancillary functions. The user may provide different ones ####
-
-#this fucntion computes association for continuous data
-computeAssocContinuousData <- function(dataMatrix, design, outcomeName, ...){
-
-  #ensuring the outcome is the last column of the design
-  if(!is.null(outcomeName)){
-    
-    #check
-    if(!any(colnames(design) == outcomeName)){
-      stop(paste('Ensure', outcomeName, 'is present in all design matrices'));
-    }
-    
-    #moving the outcome to last position
-    outcomeTemp <- design[[outcomeName]];
-    design[[outcomeName]] <- NULL;
-    design <- cbind(design, outcomeTemp);
-    names(design)[ncol(design)] <- outcomeName;
-    
-  }
-  
-  #we assume that the outcome is the last column
-  outcomeId <- ncol(design);
-
-  #what type of outcome?
-  multiGroups <- FALSE;
-  if((is.factor(design[[outcomeId]]) & length(levels(design[[outcomeId]])) >= 3) ||
-     (is.character(design[[outcomeId]]) & length(unique(design[[outcomeId]])) >= 3)){
-    multiGroups <- TRUE;
-  }
-  
-  #creating the model matrix 
-  numGroups <- length(unique(design[[outcomeId]]));
-  modelFormula <- as.formula(paste('~', paste(colnames(design), collapse = '+')))
-  design <- model.matrix(modelFormula, design)
-  numCols <- ncol(design)
-  
-  #if there are n groups, the last n-1 columns represent them
-  numColGroups <- (ncol(design) - (numGroups - 1) + 1):ncol(design)
-  
-  #fitting the models
-  fit <- lmFit(dataMatrix, design = design)
-  fit2 <- eBayes(fit)
-  
-  #if not multiple groups
-  if(!multiGroups){
-    results <- topTable(fit2, numCols, number = Inf, sort.by = 'none')
-  }else{
-    results <- topTable(fit2, numColGroups, number = Inf, sort.by = 'none')
-  }
-  
-  #returning statistics (log transformed p-values)
-  logPvalues <- (-1) * log10(results$P.Value);
-  names(logPvalues) <- rownames(results);
-  return(logPvalues)
-
-}
-
-#this fucntion computes association for count data
-computeAssocCountData <- function(dataMatrix, design, outcomeName, ...){
-
-  
-  #ensuring the outcome is the last column of the design
-  if(!is.null(outcomeName)){
-    
-    #check
-    if(!any(colnames(design) == outcomeName)){
-      stop(paste('Ensure', outcomeName, 'is present in all design matrices'));
-    }
-    
-    #moving the outcome to last position
-    outcomeTemp <- design[[outcomeName]];
-    design[[outcomeName]] <- NULL;
-    design <- cbind(design, outcomeTemp);
-    names(design)[ncol(design)] <- outcomeName;
-    
-  }
-  
-  #we assume that the outcome is the last column
-  outcomeId <- ncol(design);
-  
-  #what type of outcome?
-  multiGroups <- FALSE;
-  if((is.factor(design[[outcomeId]]) & length(levels(design[[outcomeId]])) >= 3) ||
-     (is.character(design[[outcomeId]]) & length(unique(design[[outcomeId]])) >= 3)){
-    multiGroups <- TRUE;
-  }
-  
-  #creating the model matrix 
-  numGroups <- length(unique(design[[outcomeId]]));
-  modelFormula <- as.formula(paste('~', paste(colnames(design), collapse = '+')))
-  design <- model.matrix(modelFormula, design)
-  numCols <- ncol(design)
-  
-  #if there are n groups, the last n-1 columns represent them
-  numColGroups <- (ncol(design) - (numGroups - 1) + 1):ncol(design)
-  
-  #applying voom
-  nf = calcNormFactors(dataMatrix, method = "TMM")
-  voom.data = voom(dataMatrix, design = design,
-                   lib.size = colSums(dataMatrix) * nf)
-  voom.data$genes = rownames(dataMatrix)  
-  
-  #fitting the models
-  fit <- lmFit(voom.data, design = design)
-  fit2 <- eBayes(fit)
-  
-  #if not multiple groups
-  if(!multiGroups){
-    results <- topTable(fit2, numCols, number = Inf, sort.by = 'none')
-  }else{
-    results <- topTable(fit2, numColGroups, number = Inf, sort.by = 'none')
-  }
-  
-  #returning statistics (log transformed p-values)
-  logPvalues <- (-1) * log10(results$P.Value);
-  names(logPvalues) <- rownames(results);
-  return(logPvalues)
-  
-}
-
-#function for generating random, iid permutation indices
-generate_iid_data_index <- function(design){
-  numSamples <- dim(design)[1];
-  index <- sample(x = 1:numSamples, size = numSamples, replace = FALSE)
-  return(index)
-}
-
 #### Functions to run omicsNPC. These should not be changed. ####
-
 
 # This method applies the functions for computing the association between measurements and outcome
 computeAssociation <- function(dataMatrices, designs, dataMapping, functionsAnalyzingData, outcomeName, ...){
@@ -348,7 +386,9 @@ computeAssociation <- function(dataMatrices, designs, dataMapping, functionsAnal
   results <- vector('list', length(dataMatrices));
   for(j in 1:length(dataMatrices)){
     results[[j]] <- functionsAnalyzingData[[j]](dataMatrices[[j]], designs[[j]], outcomeName, ...);
+    #results[[j]] <- functionsAnalyzingData[[j]](dataMatrices[[j]], designs[[j]], outcomeName);
   }
+  names(results) <- names(dataMatrices);
   
   #Return the results as a matrix: we do now assume the same number of results for each dataset; only a coherent naming
   
@@ -356,14 +396,15 @@ computeAssociation <- function(dataMatrices, designs, dataMapping, functionsAnal
   toReturn <- matrix(NA, nrow = dim(dataMapping)[1], ncol = length(dataMatrices));
   colnames(toReturn) <- names(dataMatrices);
   
-  #filling the matrix
+  #separating the results. Note the ordering of the statistics
   for(j in 1:length(results)){
-    toReturn[ , j] <- results[[j]][ as.character(dataMapping[[j]]) ];
+    toReturn[ , j] <- results[[j]]$statistics[as.character(dataMapping[[j]])];
+    results[[j]] <- results[[j]]$fullMatrix;
   }
   rownames(toReturn) <- rownames(dataMapping);
   
   #return
-  return(toReturn)
+  return(list(stats = toReturn, results = results))
   
 }
 
@@ -430,6 +471,9 @@ permutingData <- function(designs, functionGeneratingIndex, outcomeName, ...){
 #function for computing the p-value for each element of a vector of statistics
 computePvaluesVect <- function(statsVect){        
   
+  #taking the absolute value of the statistics
+  statsVect <- abs(statsVect);
+  
   #how many values are present in the vector of statistics?
   numStatistics <- sum(!is.na(statsVect))
   
@@ -439,12 +483,13 @@ computePvaluesVect <- function(statsVect){
   #This is the case with, for example, chi-square statistics
   #This is not the case for on-tailed t-test where more negative statistics are actually more extreme
   #The functions computing the statistics should be programmed accordingly; 
-  #for example, by changing the sign of negative statistics and putting to zero positive once, 
+  #for example, by changing the sign of negative statistics and putting to zero the positive ones, 
   #or by returning the -log(desiredOneTailedPvalue)
-  numLargerValues <- numStatistics - rank(statsVect, na.last = "keep", ties.method = "min");
+  #THIS IS NOT CHANGED: we take the absolute value of the statistics! See above
+  numLargerValues <- numStatistics - frank(statsVect, na.last = "keep", ties.method = "min");
   
   #correction for avoiding zero p-values
-  pvaluesVect <- (numLargerValues + 1)/(numStatistics + 1);
+  pvaluesVect <- (numLargerValues + 1)/(numStatistics);
   
   #returning the p-values
   return(pvaluesVect)
@@ -502,5 +547,23 @@ combiningPvalues <- function(pvalues, method, dataWeights){
   
   #returning the values
   return(stats)
+  
+}
+
+#function for merging p-values from different permutation runs
+combinePermPvalues <- function(p1, p2, numPerms1, numPerms2){
+  
+  #this function assumes that both p1 and p2 were produced as p = (numLargerStat + 1) / (numPerms + 1)
+  
+  #num of original stats larger than stat0
+  nS1 <- p1 * (numPerms1 + 1) - 1;
+  nS2 <- p2 * (numPerms2 + 1) - 1;
+  nS <- nS1 + nS2;
+  
+  #merged p-values
+  p <- (nS + 1) / (numPerms1 + numPerms2 + 1)
+  
+  #return output
+  return(p)
   
 }

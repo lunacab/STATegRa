@@ -10,7 +10,7 @@
 #' @param mappings List of annotations.
 #' @param reference If the annotations are data frame, matrices or bioMap objects, 
 #' the name of the column containing the reference elements
-#' @param retainAll Logical, if set to TRUE measurements that have no counterparts in other datasets are retained
+#' @param retainAll Logical, if set to TRUE combination not covering all available data modalities are retained.
 #'
 #' @return A data frame encoding the mapping across several dataset
 #'
@@ -42,6 +42,11 @@
 #' mappings <- list(mRNA = mRNA, methylation = methylation, miRNA = miRNA);
 #' combiningMappings(mappings = mappings, retainAll = TRUE)
 #' 
+
+if(!require(data.table)){
+  install.packages('data.table')
+  library(data.table)
+}
 
 combiningMappings <- function(mappings, reference = NULL, retainAll = FALSE){
   
@@ -97,10 +102,15 @@ combiningMappings <- function(mappings, reference = NULL, retainAll = FALSE){
     stop('Individual mappings must have two columns')
   }
   
+  #ensuring all columns are characters
+  for(i in 1:length(mappings)){
+    mappings[[i]][, 1] <- as.character(mappings[[i]][, 1])
+    mappings[[i]][, 2] <- as.character(mappings[[i]][, 2])
+  }
   #checking on reference
   if (is.null(reference)){
     
-    #if no reference is provided, mappings must have exactly one column in common
+    #mappings must have exactly one column in common
     reference <- colnames(mappings[[1]]);
     for(i in 2:length(mappings)){
       reference <- intersect(reference, colnames(mappings[[i]]));
@@ -124,22 +134,88 @@ combiningMappings <- function(mappings, reference = NULL, retainAll = FALSE){
     }
   }
   
-  #creating the mapping!
-  mapping <- as.data.frame(mappings[[1]]);
-  for(i in 2:length(mappings)){
-    currentMapping <- as.data.frame(mappings[[i]]);
-    mapping <- merge(mapping, currentMapping, by = reference, all = retainAll);
+  #sanitazing the mapping names
+  for(i in 1:length(mappings)){
+    toChange <- which(colnames(mappings[[i]]) != reference);
+    colnames(mappings[[i]])[toChange] <- paste(colnames(mappings[[i]])[toChange], 
+                                               names(mappings)[i], sep = '_');
   }
   
-  #removing the reference from the mapping and making it the row names
+  #eliminating rows that are all NA
+  for(i in 1:length(mappings)){
+    toKeep <- apply(mappings[[i]], 1, function(x){!all(is.na(x))})
+    mappings[[i]] <- mappings[[i]][toKeep, ];
+  }
+  
+  #creating the mapping!
+  previousMapping <- as.data.frame(mappings[[1]], stringAsFactors = FALSE);
+  for(i in 2:length(mappings)){
+    
+    #merging the two mappings
+    currentMapping <- as.data.frame(mappings[[i]], stringAsFactors = FALSE);
+    mapping <- merge(previousMapping, currentMapping, by = reference, all = retainAll);
+    
+    #if we shall retain all elements...
+    if(retainAll){
+    
+      #elements of previousMapping that are not in mapping
+      augmentedMapping <- previousMapping;
+      augmentedMapping[ , setdiff(colnames(mapping), colnames(augmentedMapping))] <- NA;
+      augmentedMapping <- augmentedMapping[ , colnames(mapping)]
+      toAdd <- setdiffMatrix(augmentedMapping, mapping)
+      
+      #if needed, adding the rows toAdd
+      if(length(toAdd) > 0){
+        
+        #rows to add
+        rowsToAdd <- augmentedMapping[toAdd, ]
+        
+        #adding
+        mapping <- rbind(mapping, rowsToAdd);
+        
+      }
+      
+      #elements of currentMapping that are not in mapping
+      augmentedMapping <- currentMapping;
+      augmentedMapping[ , setdiff(colnames(mapping), colnames(currentMapping))] <- NA;
+      augmentedMapping <- augmentedMapping[ , colnames(mapping)]
+      toAdd <- setdiffMatrix(augmentedMapping, mapping)
+      
+      #if needed, adding the rows toAdd
+      if(length(toAdd) > 0){
+        
+        #rows to add
+        rowsToAdd <- augmentedMapping[toAdd, ]
+        
+        #adding
+        mapping <- rbind(mapping, rowsToAdd);
+        
+      }
+        
+    }
+    
+    #looping...
+    previousMapping <- mapping;
+    
+  }
+  
+  #removing the reference from the mapping and 
   referenceElements <- mapping[[reference]];
   mapping[[reference]] <- NULL;
+  
+  # #eliminating duplicated
+  # toKeep <- which(!duplicated(mapping));
+  # mapping <- mapping[toKeep, ];
+  # referenceElements <- referenceElements[toKeep];
+  
+  #making reference as the last column
   mapping[[reference]] <- referenceElements; #this will put the reference as last column
+  
+  #ensuring uniquiness
   newRownames <- apply(mapping, 1, function(x){paste(x, collapse = ':')});
   toKeep <- !duplicated(newRownames);
   mapping <- mapping[toKeep, ];
-  newRownames <- newRownames[toKeep];
-  rownames(mapping) <- newRownames;
+  rownames(mapping) <- NULL;
   
   #naming the columns of mapping
   colnames(mapping) <- c(names(mappings), reference);
@@ -149,7 +225,37 @@ combiningMappings <- function(mappings, reference = NULL, retainAll = FALSE){
     mapping[[i]] <- as.character(mapping[[i]]);
   }
   
+  #removing rows with only NA values
+  isAllNAs <- which(apply(mapping, 1, function(x){all(is.na(x))}))
+  if(length(isAllNAs) > 0){
+    mapping <- mapping[-isAllNAs, ]
+  }
+  
+  #removing rows with only one non-NA values
+  numNAs <- apply(mapping, 1, function(x){sum(is.na(x))})
+  toRemove <- which(numNAs == (dim(mapping)[2] - 2))
+  if(length(toRemove) > 0){
+    mapping <- mapping[-toRemove, ]
+  }
+  
+  #ordering according to reference
+  mapping <- mapping[order(mapping[[reference]]), ]
+  
   #return
   return(mapping);
   
 }
+
+setdiffMatrix <- function(m1, m2){
+  
+  DT1 <- data.table(m1)
+  DT2 <- data.table(cbind(m2, 0), key=colnames(m2))
+  for(i in 1:dim(DT1)[2]){
+    DT1[[i]] <- as.character(DT1[[i]])
+  }
+  setnames(DT2, c(names(DT2)[1:(dim(DT2)[2]-1)], "found"))
+  intersection <- DT2[DT1, ];
+  inM1notInM2 <- which(is.na(intersection$found))
+  
+}
+
